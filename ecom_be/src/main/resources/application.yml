@@ -1,0 +1,78 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/Ecom?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
+  data:
+    redis:
+      use-redis-cache: false
+      host: localhost
+      port: 6379
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+
+
+api:
+  prefix: /api/v1
+
+jwt:
+  expiration: 2592000
+  expiration-refresh-token: 5184000
+  secretKey: TaqlmGv1iEDMRiFp/pHuID1+T84IABfuA0xXh4GhiUI=
+
+logging:
+  level:
+    org:
+      springframework.security: DEBUG
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+management:
+  endpoints:
+    web:
+      base-path: /api/v1/actuator
+      exposure:
+        include: "health,info"
+  endpoint:
+    health:
+      show-details: always
+
+vnpay:
+  pay-url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+  return-url: "http://localhost:4200/payments/payment-callback"
+  tmn-code: "YOUR_TMN_CODE"       # L?y t? VNPay sandbox
+  secret-key: "YOUR_SECRET_KEY"   # L?y t? VNPay sandbox
+  api-url: "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
+
+
