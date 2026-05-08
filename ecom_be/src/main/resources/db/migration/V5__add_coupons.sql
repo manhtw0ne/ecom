@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS coupons (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    active TINYINT(1) NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS coupon_conditions (
+    id BIGINT AUTO_ICREMENT PRIMARY KEY,
+    coupon_id BIGINT NOT NULL,
+    attribute VARCHAR(100) NOT NULL,
+    operator VARCHAR(50) NOT NULL,
+    value VARCHAR(255) NOT NULL,
+    discount_amount DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (coupon_id) REFERENCES coupons(id)
+);
