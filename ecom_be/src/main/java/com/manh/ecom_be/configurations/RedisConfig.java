@@ -11,7 +11,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 public class RedisConfig {
-    @Value("${spring.data.redis.use-redis-cache")
+    @Value("${spring.data.redis.use-redis-cache}")
     private boolean useRedisCache;
 
     @Bean

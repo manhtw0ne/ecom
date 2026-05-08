@@ -22,7 +22,7 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService(UserRepository repo) {
         return username -> repo.findByPhoneNumber(username)
-                .or(() -> repo.findByPhoneNumber(username))
+                .or(() -> repo.findByEmail(username))
                         .orElseThrow(() ->
                                 new UsernameNotFoundException("User not found: " + username));
     }

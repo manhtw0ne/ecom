@@ -22,10 +22,10 @@ import java.util.function.Function;
 @Component
 @RequiredArgsConstructor
 public class JwtTokenUtils {
-    @Value("${jwt.expiration")
+    @Value("${jwt.expiration}")
     private int expiration;
 
-    @Value("${jwt.expiration-refresh-token")
+    @Value("${jwt.expiration-refresh-token}")
     private int expirationRefreshToken;
 
     @Value("${jwt.secretKey}")
@@ -63,7 +63,7 @@ public class JwtTokenUtils {
     private <T> T extractClaim(String token, Function<Claims, T> resolver) {
         return resolver.apply(
                 Jwts.parser().verifyWith(getSignInKey()).build()
-                        .parserSignedClaims(token).getPayload()
+                        .parseSignedClaims(token).getPayload()
         );
     }
 

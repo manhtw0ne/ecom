@@ -1,9 +1,12 @@
 package com.manh.ecom_be.services.product;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.manh.ecom_be.responses.ProductResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -15,6 +18,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductRedisService implements InterfaceProductRedisService {
     private final RedisTemplate<String, Object> redisTemplate;
+
+    @Qualifier("redisObjectMapper")
     private final ObjectMapper redisObjectMapper;
 
     @Value("${spring.data.redis.use-redis-cache}")

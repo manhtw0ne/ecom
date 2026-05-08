@@ -9,8 +9,9 @@ CREATE TABLE IF NOT EXISTS products (
     price FLOAT NOT NULL,
     thumbnail VARCHAR(300),
     description LONGTEXT,
-    category_at DATETIME,
+    created_at DATETIME,
     updated_at DATETIME,
+    category_id BIGINT,
     FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
@@ -21,6 +22,6 @@ CREATE TABLE IF NOT EXISTS product_images (
     created_at DATETIME,
     updated_at DATETIME,
     FOREIGN KEY (product_id) REFERENCES products(id)
-)
+);
 
 INSERT INTO categories (name) VALUES ('Electronics'), ('Clothing'), ('Home');
