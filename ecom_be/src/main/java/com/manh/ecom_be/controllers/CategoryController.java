@@ -1,27 +1,38 @@
 package com.manh.ecom_be.controllers;
 
 
+import com.manh.ecom_be.dtos.CategoryDTO;
+import com.manh.ecom_be.models.Category;
 import com.manh.ecom_be.responses.ResponseObject;
 import com.manh.ecom_be.services.category.InterfaceCategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("${api.prefix}/categories")
 @RequiredArgsConstructor
 public class CategoryController {
     private final InterfaceCategoryService categoryService;
+    private final KafkaTemplate<?, ?> kafkaTemplate;
 
     @GetMapping("")
     public ResponseEntity<ResponseObject> getAllCategories() {
+
+        List<Category> categories = categoryService.getAllCategories();
+
+        kafkaTemplate.send("get-all-categories", categories);
+
+
         return ResponseEntity.ok(ResponseObject.builder()
                 .message("Get categories successfully")
                 .data(categoryService.getAllCategories())
@@ -40,6 +51,11 @@ public class CategoryController {
                             .collect(Collectors.joining(", ")))
                     .build());
         }
+
+        Category category = categoryService.createCategory(dto);
+
+        kafkaTemplate.send("insert-a-category", category);
+
         return ResponseEntity.ok(ResponseObject.builder()
                 .message("Create category successfully")
                 .status(HttpStatus.CREATED)

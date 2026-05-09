@@ -9,6 +9,7 @@ import com.manh.ecom_be.models.User;
 import com.manh.ecom_be.responses.LoginResponse;
 import com.manh.ecom_be.responses.ResponseObject;
 import com.manh.ecom_be.responses.UserResponse;
+import com.manh.ecom_be.services.auth.AuthService;
 import com.manh.ecom_be.services.token.InterfaceTokenService;
 import com.manh.ecom_be.services.user.InterfaceUserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,11 +17,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,6 +34,7 @@ public class UserController {
     private final InterfaceUserService userService;
     private final InterfaceTokenService tokenService;
     private final JwtTokenUtils jwtTokenUtils;
+    private final AuthService authService;
 
     @PostMapping("/register")
     public ResponseEntity<ResponseObject> createUser(
@@ -105,6 +110,77 @@ public class UserController {
         return ResponseEntity.ok(ResponseObject.builder()
                 .data(UserResponse.fromUser(user))
                 .message("OK")
+                .build());
+    }
+
+    @GetMapping("/auth/social-login")
+    public ResponseEntity<String> socialAuth(
+            @RequestParam("login_type") String loginType
+    ) {
+        String url = authService.generateAuthUrl(loginType.trim().toLowerCase());
+        return ResponseEntity.ok(url);
+    }
+
+    @GetMapping("/auth/social/callback")
+    public ResponseEntity<ResponseObject> socialCallback(
+            @RequestParam("code") String code,
+            @RequestParam("login_type") String loginType,
+            HttpServletRequest request
+    ) throws Exception {
+        Map<String, Object> userInfo = authService.authenticateAndFetchProfile(code, loginType);
+        if (userInfo == null) {
+            return ResponseEntity.badRequest().body(
+            ResponseObject.builder().message("Failed to authenticate").build()
+
+            );
+        }
+        String accountId, name, picture = "", email = "";
+
+        if (loginType.trim().equalsIgnoreCase("google")) {
+            accountId = (String) Objects.requireNonNullElse(userInfo.get("sub"), "");
+            name = (String) Objects.requireNonNullElse(userInfo.get("name"), "");
+            picture = (String) Objects.requireNonNullElse(userInfo.get("picture"), "");
+            email = (String) Objects.requireNonNullElse(userInfo.get("email"), "");
+        } else {
+            accountId = (String) Objects.requireNonNullElse(userInfo.get("id"), "");
+            name = (String) Objects.requireNonNullElse(userInfo.get("name"), "");
+            email = (String) Objects.requireNonNullElse(userInfo.get("email"), "");
+        }
+
+        UserLoginDTO socialDTO = UserLoginDTO.builder()
+                .email(email)
+                .fullname(name)
+                .password("")
+                .profileImage(picture)
+                .build();
+
+        if (loginType.trim().equalsIgnoreCase("google")) {
+            socialDTO.setGoogleAccountId(accountId);
+        } else {
+            socialDTO.setFacebookAccountId(accountId);
+        }
+
+        String token = userService.loginSocial(socialDTO);
+        User user = userService.getUserDetailsFromToken(token);
+        String userAgent = request.getHeader("User-Agent");
+        boolean isMobile = userAgent != null && userAgent.toLowerCase().contains("mobile");
+        Token savedToken = tokenService.addToken(user, token, isMobile);
+
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .token(savedToken.getToken())
+                .tokenType("Bearer")
+                .refreshToken(savedToken.getRefreshToken())
+                .username(user.getUsername())
+                .roles(user.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority).toList())
+                .id(user.getId())
+                .build();
+
+        return ResponseEntity.ok(ResponseObject.builder()
+                .message("Login successfully")
+                .data(loginResponse)
+                .status(HttpStatus.OK)
                 .build());
     }
 }

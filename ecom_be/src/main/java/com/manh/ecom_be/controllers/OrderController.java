@@ -72,7 +72,7 @@ public class OrderController {
     public ResponseEntity<ResponseObject> updateOrder(
             @PathVariable Long id, @RequestBody OrderDTO orderDTO
     ) throws Exception {
-        return ResponseEntity.ok(ResponseObjetc.builder()
+        return ResponseEntity.ok(ResponseObject.builder()
                 .message("Update order successfully")
                 .data(orderService.updateOrder(id, orderDTO))
                 .status(HttpStatus.OK).build());
@@ -88,7 +88,7 @@ public class OrderController {
     }
 
     @GetMapping("")
-    @PreAuthorize("hasRole("ROLE_ADMIN")")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ResponseObject> getAllOrders(
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "0") int page,

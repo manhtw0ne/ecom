@@ -26,4 +26,16 @@ public class UserLoginDTO {
     @JsonProperty("role_id")
     private Long roleId;
 
+    @JsonProperty("google_account_id")
+    private String googleAccountId;
+
+    @JsonProperty("facebook_account_id")
+    private String facebookAccountId;
+
+    @JsonProperty("profile_image")
+    private String profileImage;
+
+    public boolean isFacebookAccountIdValid() {
+        return facebookAccountId != null && !facebookAccountId.isEmpty();
+    }
 }

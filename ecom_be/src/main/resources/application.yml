@@ -7,6 +7,28 @@ spring:
     username: root
     password: root
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: YOUR_GOOGLE_CLIENT_ID
+            client-secret: YOUR_GOOGLE_CLIENT_SECRET
+            redirect-uri: "http://localhost:4300/auth/google/callback"
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+          facebook:
+            client-id: YOUR_FACEBOOK_APP_ID
+            client-secret: YOUR_FACEBOOK_APP_SECRET
+            redirect-uri: "http://localhost:4300/auth/facebook/callback"
+            auth-uri: https://www.facebook.com/v21.0/dialog/oauth
+            token-uri: https://graph.facebook.com/oauth/access_token
+            user-info-uri: https://graph.facebook.com/me?fields=id,name,email,picture.type(large)
+            scope:
+              - email
+              - public_profile
+
+
+
   jpa:
     show-sql: true
     hibernate:
@@ -35,9 +57,12 @@ spring:
     bootstrap-servers: localhost:9092
     producer:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        "[spring.json.type.mapping]": "category:com.manh.ecom_be.models.Category"
     consumer:
       value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
-
+      group-id: shopapp-group
+      auto-offset-reset: earliest
 
 api:
   prefix: /api/v1

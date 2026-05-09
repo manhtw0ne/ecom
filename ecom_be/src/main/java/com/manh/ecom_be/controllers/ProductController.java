@@ -24,6 +24,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("${api.prefix}/products")
+@RequiredArgsConstructor
 public class ProductController {
     private final InterfaceProductService productService;
     private final InterfaceProductRedisService productRedisService;
@@ -109,4 +114,5 @@ public class ProductController {
                 .message("Upload images successfully")
                 .data(savedImages)
                 .build());
+    }
 }

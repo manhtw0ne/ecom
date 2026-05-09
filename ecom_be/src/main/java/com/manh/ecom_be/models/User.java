@@ -54,6 +54,9 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
     @Column(name = "google_account_id")
     private String googleAccountId;
 
+    @Column(name = "profile_image", length = 255)
+    private String profileImage;
+
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;

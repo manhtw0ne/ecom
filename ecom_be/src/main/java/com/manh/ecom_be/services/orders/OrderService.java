@@ -37,7 +37,7 @@ public class OrderService implements InterfaceOrderService {
         User user = userRepository.findById(orderDTO.getUserId())
                 .orElseThrow(() -> new DataNotFoundException("User not found: " + orderDTO.getUserId()));
 
-        modelMapper.typeMap(OrderDTO, Order.class)
+        modelMapper.typeMap(OrderDTO.class, Order.class)
                 .addMappings(mapper -> mapper.skip(Order::setId));
         Order order = new Order();
         modelMapper.map(orderDTO, order);
@@ -46,52 +46,47 @@ public class OrderService implements InterfaceOrderService {
         order.setStatus(OrderStatus.PENDING);
         order.setActive(true);
 
-        LocalDate shippingDate = orderDTO.getShippingDate() == null ? LocalDate.now() : orderDTO.getShippingDate()
-                if (shippingDate.isBefore(LocalDate.now())) {
-                    throw new DataNotFoundException("Shipping date must be at least today");
-                };
-                order.setShippingDate(shippingDate);
+        LocalDate shippingDate = orderDTO.getShippingDate() == null ? LocalDate.now() : orderDTO.getShippingDate();
+        if (shippingDate.isBefore(LocalDate.now())) {
+            throw new DataNotFoundException("Shipping date must be at least today");
+        }
+        order.setShippingDate(shippingDate);
 
-                if (orderDTO.getShippingAddress() == null) {
-                    order.setShippingAddress(orderDTO.getAddress());
-                }
-                order.setShippingDate(shippingDate);
+        if (orderDTO.getShippingAddress() == null) {
+            order.setShippingAddress(orderDTO.getAddress());
+        }
 
-                if (orderDTO.getShippingAddress() == null) {
-                    order.setShippingAddress(orderDTO.getAddress());
-                }
+        if (orderDTO.getVnpTxnRef() != null) {
+            order.setVnpTxnRef(orderDTO.getVnpTxnRef());
+        }
 
-                if (orderDTO.getVnpTxnRef() != null) {
-                    order.setVnpTxnRef(orderDTO.getVnpTxnRef());
-                }
+        List<OrderDetail> orderDetails = new ArrayList<>();
+        for (CartItemDTO item : orderDTO.getCartItems()) {
+            Product product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new DataNotFoundException("Product not found: " + item.getProductId()));
 
-                List<OrderDetail> orderDetails = new ArrayList<>();
-                for (CartItemDTO item : orderDTO.getCartItems()) {
-                    Product product = productRepository.findById(item.getProductId())
-                            .orElseThrow(() -> new DataNotFoundException("Product not found: " + item.getProductId()));
+            orderDetails.add(OrderDetail.builder()
+                    .order(order)
+                    .product(product)
+                    .numberOfProducts(item.getQuantity())
+                    .price(product.getPrice())
+                    .totalMoney(product.getPrice() * item.getQuantity())
+                    .build());
+        }
 
-                    orderDetails.add(OrderDetail.builder()
-                            .order(order)
-                            .product(product)
-                            .numberOfProducts(item.getQuantity())
-                            .price(product.getPrice())
-                            .totalMoney(product.getPrice() * item.getQuantity())
-                            .build());
-                }
+        String couponCode = orderDTO.getCouponCode();
+        if (couponCode != null && !couponCode.isEmpty()) {
+            Coupon coupon = couponRepository.findByCode(couponCode)
+                    .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+            if (!coupon.isActive()) {
+                throw new IllegalArgumentException("Coupon is not active");
+            }
+            order.setCoupon(coupon);
+        }
 
-                String couponCode = orderDTO.getCouponCode();
-                if (couponCode != null && !couponCode.isEmpty()) {
-                    Coupon coupon = couponRepository.findByCode(couponCode)
-                            .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
-                    if (!coupon.isActive()) {
-                        throw new IllegalArgumentException("Coupon is not active");
-                    }
-                    order.setCoupon(coupon);
-                }
-
-                orderRepository.save(order);
-                orderDetailRepository.saveAll(orderDetails);
-                return order;
+        orderRepository.save(order);
+        orderDetailRepository.saveAll(orderDetails);
+        return order;
     }
 
     @Override
