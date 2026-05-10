@@ -10,6 +10,8 @@ import com.manh.ecom_be.responses.ProductResponse;
 import com.manh.ecom_be.responses.ResponseObject;
 import com.manh.ecom_be.services.product.InterfaceProductRedisService;
 import com.manh.ecom_be.services.product.InterfaceProductService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -149,6 +151,20 @@ public class ProductController {
         return ResponseEntity.ok(ResponseObject.builder()
                 .message("Get favorites successfully")
                 .data(favorites.stream().map(ProductResponse::fromProduct).toList())
+                .status(HttpStatus.OK)
+                .build());
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @Operation(security = { @SecurityRequirement(name = "bearer-key") })
+    public ResponseEntity<ResponseObject> updateProduct(
+            @PathVariable long id,
+            @RequestBody ProductDTO productDTO) throws Exception {
+        Product updatedProduct = productService.updateProduct(id, productDTO);
+        return ResponseEntity.ok(ResponseObject.builder()
+                .data(updatedProduct)
+                .message("Update product successfully")
                 .status(HttpStatus.OK)
                 .build());
     }

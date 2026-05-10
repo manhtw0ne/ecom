@@ -12,6 +12,7 @@ import com.manh.ecom_be.responses.UserResponse;
 import com.manh.ecom_be.services.auth.AuthService;
 import com.manh.ecom_be.services.token.InterfaceTokenService;
 import com.manh.ecom_be.services.user.InterfaceUserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("${api.prefix}/users")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearer-key")
 public class UserController {
     private final InterfaceUserService userService;
     private final InterfaceTokenService tokenService;

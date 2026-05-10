@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
@@ -38,16 +39,26 @@ public class WebSecurityConfig {
                 .addFilterBefore(jwtTokenFilter,
                         UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(req -> req.requestMatchers(
-                        apiPrefix + "/users/register",
-                        apiPrefix + "/users/login",
-                        apiPrefix + "/users/refreshToken",
-                        "/api-docs/**", "/swagger-ui/**"
-                ).permitAll().requestMatchers(HttpMethod.GET,
-                        apiPrefix + "/products/**",
-                        apiPrefix + "/categories/**",
-                        apiPrefix + "/comments/**",
-                        apiPrefix + "roles**").permitAll()
-                        .anyRequest().authenticated());
+                                apiPrefix + "/users/register",
+                                apiPrefix + "/users/login",
+                                apiPrefix + "/users/refreshToken",
+                                apiPrefix + "/users/auth/social-login",
+                                apiPrefix + "/users/auth/social/callback",
+                                "/api-docs", "/api-docs/**",
+                                "/swagger-resources/**",
+                                "/swagger-ui/**", "/swagger-ui.html"
+                        ).permitAll()
+
+                        // Public GET
+                        .requestMatchers(GET,
+                                apiPrefix + "/products/**",
+                                apiPrefix + "/categories/**",
+                                apiPrefix + "/comments**",
+                                apiPrefix + "/roles**",
+                                apiPrefix + "/coupons**",
+                                apiPrefix + "/healthcheck/**").permitAll()
+                        .anyRequest().authenticated())
+                .oauth2Login(Customizer.withDefaults());
         return http.build();
     }
 }
