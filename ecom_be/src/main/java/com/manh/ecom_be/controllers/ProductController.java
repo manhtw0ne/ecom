@@ -1,7 +1,10 @@
 package com.manh.ecom_be.controllers;
 
 import com.manh.ecom_be.dtos.ProductDTO;
+import com.manh.ecom_be.models.Product;
 import com.manh.ecom_be.models.ProductImage;
+import com.manh.ecom_be.models.User;
+import com.manh.ecom_be.repositories.ProductRepository;
 import com.manh.ecom_be.responses.ProductListResponse;
 import com.manh.ecom_be.responses.ProductResponse;
 import com.manh.ecom_be.responses.ResponseObject;
@@ -32,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 public class ProductController {
     private final InterfaceProductService productService;
     private final InterfaceProductRedisService productRedisService;
+    private final ProductRepository productRepository;
 
     @GetMapping("")
     public ResponseEntity<ResponseObject> getProducts(
@@ -115,4 +119,40 @@ public class ProductController {
                 .data(savedImages)
                 .build());
     }
+
+    @PostMapping("/{productId}/like")
+    @PreAuthozire("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
+    public ResponseEntity<ResponseObject> likeProduct(@PathVariable Long productId) throws Exception {
+        User loginUser = securityUtils.getLoggedInUser();
+        productService.likeProduct(loginUser.getId(), productId);
+        return ResponseEntity.ok(ResponseObject.builder()
+                .message("Like product successfully")
+                .status(HttpStatus.OK)
+                .build());
+    }
+
+    @DeleteMapping("/{productId}/unlike")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
+    public ResponseEntity<ResponseObject> unlikeProduct(@PathVariable Long productId)
+        throws Exception {
+        User loginUser = securityUtils.getLoggedInUser();
+        productService.unlikeProduct(loginUser.getId(), productId);
+        return ResponseEntity.ok(ResponseObject.builder()
+                .message("Unlike product successfully")
+                .status(HttpStatus.OK)
+                .build());
+    }
+
+    @GetMapping("/{userId}/favorites")
+    public ResponseEntity<ResponseObject> getFavoriteProducts(@PathVariable Long userId) {
+        List<Product> favorites = productRepository.findFavoriteProductsByUserId(userId);
+        return ResponseEntity.ok(ResponseObject.builder()
+                .message("Get favorites successfully")
+                .data(favorites.stream().map(ProductResponse::fromProduct).toList())
+                .status(HttpStatus.OK)
+                .build());
+    }
 }
+
+
+

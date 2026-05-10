@@ -4,15 +4,18 @@ package com.manh.ecom_be.services.product;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.manh.ecom_be.dtos.ProductDTO;
 import com.manh.ecom_be.dtos.ProductImageDTO;
-import com.manh.ecom_be.models.Category;
-import com.manh.ecom_be.models.Product;
-import com.manh.ecom_be.models.ProductImage;
-import com.manh.ecom_be.repositories.CategoryRepository;
-import com.manh.ecom_be.repositories.ProductImageRepository;
-import com.manh.ecom_be.repositories.ProductRepository;
+import com.manh.ecom_be.models.*;
+import com.manh.ecom_be.repositories.*;
+import com.manh.ecom_be.responses.ProductResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.config.ConfigDataNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,9 @@ public class ProductService implements InterfaceProductService {
     private final CategoryRepository categoryRepository;
     private final ProductImageRepository productImageRepository;
     private final InterfaceProductRedisService productRedisService;
+    private final FavoriteRepository favoriteRepository;
+    private final UserRepository userRepository;
+
 
     @Override
     @Transactional
@@ -41,6 +47,25 @@ public class ProductService implements InterfaceProductService {
     public Product getProductById(long id) throws Exception {
         return productRepository.getDetailProduct(id)
                 .orElseThrow(() -> new DataNotFoundException("Product not found: " + id));
+    }
+
+    @Transactional
+    public void likeProduct(long userId, Long productId) {
+        if (!favoriteRepository.existsByUserIdAndProductId(userId, productId)) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new DataNotFoundException("User not found"));
+            Product product = getProductById(productId);
+            favoriteRepository.save(Favorite.builder().user(user).product(product).build());
+        }
+
+    }
+
+    @Transactional
+    public void unlikeProduct(Long userId, Long productId) {
+        Favorite fav = favoriteRepository.findByUserIdAndProductId(userId, productId);
+        if (fav != null) {
+            favoriteRepository.delete(fav);
+        }
     }
 
     @Override
