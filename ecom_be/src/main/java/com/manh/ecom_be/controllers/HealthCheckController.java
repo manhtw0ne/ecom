@@ -3,7 +3,7 @@ package com.manh.ecom_be.controllers;
 
 import com.manh.ecom_be.models.Category;
 import com.manh.ecom_be.responses.ResponseObject;
-import com.manh.ecom_be.services.category.CategoryService;
+import com.manh.ecom_be.services.category.InterfaceCategoryService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ import java.util.List;
 @RequestMapping("${api.prefix}/healthcheck")
 @AllArgsConstructor
 public class HealthCheckController {
-    private final CategoryService categoryService;
+    private final InterfaceCategoryService categoryService;
 
     @GetMapping("/health")
     public ResponseEntity<ResponseObject> healthCheck() throws Exception {
@@ -26,7 +26,8 @@ public class HealthCheckController {
 
         String computerName = InetAddress.getLocalHost().getHostName();
 
-        return ResponseEntity.ok(ResponseObject.builder()
+        return ResponseEntity.ok(ResponseObject
+                .builder()
                 .message("ok, Computer Name: " + computerName)
                 .status(HttpStatus.OK)
                 .build());

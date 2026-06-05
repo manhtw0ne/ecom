@@ -13,7 +13,8 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class Comment extends BaseEntity {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne

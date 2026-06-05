@@ -3,7 +3,11 @@ package com.manh.ecom_be.services.orders;
 
 import com.manh.ecom_be.dtos.CartItemDTO;
 import com.manh.ecom_be.dtos.OrderDTO;
+import com.manh.ecom_be.dtos.OrderDetailDTO;
+import com.manh.ecom_be.dtos.OrderWithDetailsDTO;
+import com.manh.ecom_be.exceptions.DataNotFoundException;
 import com.manh.ecom_be.models.*;
+import com.manh.ecom_be.repositories.CouponRepository;
 import com.manh.ecom_be.repositories.OrderDetailRepository;
 import com.manh.ecom_be.repositories.OrderRepository;
 import com.manh.ecom_be.repositories.ProductRepository;
@@ -29,12 +33,14 @@ public class OrderService implements InterfaceOrderService {
     private final ProductRepository productRepository;
     private final CouponRepository couponRepository;
     private final OrderDetailRepository orderDetailRepository;
+
     private final ModelMapper modelMapper;
 
     @Override
     @Transactional
     public Order createOrder(OrderDTO orderDTO) throws Exception {
-        User user = userRepository.findById(orderDTO.getUserId())
+        User user = userRepository
+                .findById(orderDTO.getUserId())
                 .orElseThrow(() -> new DataNotFoundException("User not found: " + orderDTO.getUserId()));
 
         modelMapper.typeMap(OrderDTO.class, Order.class)
@@ -44,71 +50,154 @@ public class OrderService implements InterfaceOrderService {
         order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
-        order.setActive(true);
 
-        LocalDate shippingDate = orderDTO.getShippingDate() == null ? LocalDate.now() : orderDTO.getShippingDate();
+        LocalDate shippingDate = orderDTO.getShippingDate() == null
+                ? LocalDate.now() : orderDTO.getShippingDate();
         if (shippingDate.isBefore(LocalDate.now())) {
-            throw new DataNotFoundException("Shipping date must be at least today");
+            throw new DataNotFoundException("Date must be at least today");
         }
         order.setShippingDate(shippingDate);
+        order.setActive(true);
 
-        if (orderDTO.getShippingAddress() == null) {
-            order.setShippingAddress(orderDTO.getAddress());
-        }
+        order.setTotalMoney(orderDTO.getTotalMoney());
 
         if (orderDTO.getVnpTxnRef() != null) {
             order.setVnpTxnRef(orderDTO.getVnpTxnRef());
         }
 
-        List<OrderDetail> orderDetails = new ArrayList<>();
-        for (CartItemDTO item : orderDTO.getCartItems()) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new DataNotFoundException("Product not found: " + item.getProductId()));
+        if (orderDTO.getShippingAddress() == null) {
+            order.setShippingAddress(orderDTO.getAddress());
+        }
 
-            orderDetails.add(OrderDetail.builder()
-                    .order(order)
-                    .product(product)
-                    .numberOfProducts(item.getQuantity())
-                    .price(product.getPrice())
-                    .totalMoney(product.getPrice() * item.getQuantity())
-                    .build());
+        List<OrderDetail> orderDetails = new ArrayList<>();
+        for (CartItemDTO cartItemDTO : orderDTO.getCartItems()) {
+            OrderDetail orderDetail = new OrderDetail();
+            orderDetail.setOrder(order);
+
+            Long productId = cartItemDTO.getProductId();
+            int quantity = cartItemDTO.getQuantity();
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new DataNotFoundException("Product not found with id: " + productId));
+
+            orderDetail.setProduct(product);
+            orderDetail.setNumberOfProducts(quantity);
+            orderDetail.setPrice(product.getPrice());
+            orderDetails.add(orderDetail);
         }
 
         String couponCode = orderDTO.getCouponCode();
-        if (couponCode != null && !couponCode.isEmpty()) {
+        if (!couponCode.isEmpty()) {
             Coupon coupon = couponRepository.findByCode(couponCode)
                     .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
             if (!coupon.isActive()) {
                 throw new IllegalArgumentException("Coupon is not active");
             }
             order.setCoupon(coupon);
+        } else {
+            order.setCoupon(null);
         }
 
-        orderRepository.save(order);
         orderDetailRepository.saveAll(orderDetails);
+        orderRepository.save(order);
+        return order;
+    }
+
+    @Transactional
+    public Order updateOrderWithDetails(OrderWithDetailsDTO orderWithDetailsDTO) {
+        modelMapper.typeMap(OrderWithDetailsDTO.class, Order.class)
+                .addMappings(mapper -> mapper.skip(Order::setId));
+        Order order = new Order();
+        modelMapper.map(orderWithDetailsDTO, order);
+        Order savedOrder = orderRepository.save(order);
+
+        for (OrderDetailDTO orderDetailDTO : orderWithDetailsDTO.getOrderDetailDTOS()) {
+
+        }
+
+        List<OrderDetail> savedOrderDetails = orderDetailRepository.saveAll(order.getOrderDetails());
+        savedOrder.setOrderDetails(savedOrderDetails);
+        return savedOrder;
+    }
+
+
+
+    @Override
+    public Order getOrderById(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            order = orderRepository.findByVnpTxnRef(orderId.toString()).orElse(null);
+        }
         return order;
     }
 
     @Override
-    public Order getOrderById(Long id) {
-        return orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + id));
-    }
-
-    @Override
     @Transactional
-    public Order updateOrder(Long id, OrderDTO orderDTO) throws Exception {
+    public Order updateOrder(Long id, OrderDTO orderDTO) throws DataNotFoundException {
         Order order = getOrderById(id);
-        modelMapper.typeMap(OrderDTO.class, Order.class)
-                .addMappings(mapper -> mapper.skip(Order::setId));
-        modelMapper.map(orderDTO, order);
+        User existingUser = userRepository.findById(
+                orderDTO.getUserId()).orElseThrow(() ->
+                new DataNotFoundException("Cannot find user with id: " + id));
+
+        if (orderDTO.getUserId() != null) {
+            User user = new User();
+            user.setId(orderDTO.getUserId());
+            order.setUser(user);
+        }
+
+        if (orderDTO.getFullName() != null && !orderDTO.getFullName().trim().isEmpty()) {
+            order.setFullName(orderDTO.getFullName().trim());
+        }
+
+        if (orderDTO.getEmail() != null && !orderDTO.getEmail().trim().isEmpty()) {
+            order.setEmail(orderDTO.getEmail().trim());
+        }
+
+        if (orderDTO.getPhoneNumber() != null && !orderDTO.getPhoneNumber().trim().isEmpty()) {
+            order.setPhoneNumber(orderDTO.getPhoneNumber().trim());
+        }
+
+        if (orderDTO.getStatus() != null && !orderDTO.getStatus().trim().isEmpty()) {
+            order.setStatus(orderDTO.getStatus().trim());
+        }
+
+        if (orderDTO.getAddress() != null && !orderDTO.getAddress().trim().isEmpty()) {
+            order.setAddress(orderDTO.getAddress().trim());
+        }
+
+        if (orderDTO.getNote() != null && !orderDTO.getNote().trim().isEmpty()) {
+            order.setNote(orderDTO.getNote().trim());
+        }
+
+        if (orderDTO.getTotalMoney() != null) {
+            order.setTotalMoney(orderDTO.getTotalMoney());
+        }
+
+        if (orderDTO.getShippingMethod() != null && !orderDTO.getShippingMethod().trim().isEmpty()) {
+            order.setShippingMethod(orderDTO.getShippingMethod().trim());
+        }
+
+        if (orderDTO.getShippingAddress() != null && !orderDTO.getShippingAddress().trim().isEmpty()) {
+            order.setShippingAddress(orderDTO.getShippingAddress().trim());
+        }
+
+        if (orderDTO.getShippingDate() != null) {
+            order.setShippingDate(orderDTO.getShippingDate());
+        }
+
+        if (orderDTO.getPaymentMethod() != null && !orderDTO.getPaymentMethod().trim().isEmpty()) {
+            order.setPaymentMethod(orderDTO.getPaymentMethod().trim());
+        }
+
+        order.setUser(existingUser);
         return orderRepository.save(order);
     }
 
     @Override
     @Transactional
-    public void deleteOrder(Long id) {
-        Order order = orderRepository.findById(id).orElse(null);
+    public void deleteOrder(Long orderId) {
+        Order order = getOrderById(orderId);
+
         if (order != null) {
             order.setActive(false);
             orderRepository.save(order);
@@ -117,12 +206,44 @@ public class OrderService implements InterfaceOrderService {
 
     @Override
     public List<OrderResponse> findByUserId(Long userId) {
-        return orderRepository.findByUserId(userId).stream()
-                .map(OrderResponse::fromOrder).toList();
+        List<Order> orders = orderRepository.findByUserId(userId);
+        return orders.stream().map(order -> OrderResponse.fromOrder(order)).toList();
     }
 
     @Override
     public Page<Order> getOrdersByKeyword(String keyword, Pageable pageable) {
         return orderRepository.findByKeyword(keyword, pageable);
+    }
+
+    @Override
+    @Transactional
+    public Order updateOrderStatus(Long id, String status) throws DataNotFoundException, IllegalArgumentException {
+        Order order = getOrderById(id);
+        if (status == null || status.trim().isEmpty()) {
+            throw new IllegalArgumentException("Status cannot be null or empty");
+        }
+
+        if (!OrderStatus.VALID_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("Invalid status " + status);
+        }
+
+        String currentStatus = order.getStatus();
+        if (currentStatus.equals(OrderStatus.DELIVERED) && !status.equals(OrderStatus.CANCELLED)) {
+            throw new IllegalArgumentException("Cannot change status of a DELIVERED order");
+        }
+
+        if (status.equals(OrderStatus.CANCELLED)) {
+            throw new IllegalArgumentException("Cannot change status of a CANCELLED order");
+        }
+
+        if (status.equals(OrderStatus.CANCELLED)) {
+            if (!currentStatus.equals(OrderStatus.PENDING)) {
+                throw new IllegalArgumentException("Cannot change status of a PENDING order");
+            }
+        }
+
+        order.setStatus(status);
+
+        return orderRepository.save(order);
     }
 }

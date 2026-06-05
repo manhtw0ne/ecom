@@ -1,7 +1,8 @@
 package com.manh.ecom_be.services.comment;
 
-
+import com.github.javafaker.Faker;
 import com.manh.ecom_be.dtos.CommentDTO;
+import com.manh.ecom_be.exceptions.DataNotFoundException;
 import com.manh.ecom_be.models.Comment;
 import com.manh.ecom_be.models.Product;
 import com.manh.ecom_be.models.User;
@@ -9,8 +10,9 @@ import com.manh.ecom_be.repositories.CommentRepository;
 import com.manh.ecom_be.repositories.ProductRepository;
 import com.manh.ecom_be.repositories.UserRepository;
 import com.manh.ecom_be.responses.comment.CommentResponse;
-import com.manh.ecom_be.services.product.InterfaceProductService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,66 +24,77 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
-@Service
 @RequiredArgsConstructor
+@Service
 public class CommentService implements InterfaceCommentService {
+    private static final Logger logger = LoggerFactory.getLogger(CommentService.class);
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
 
     @Override
     @Transactional
-    public Comment insertComment(CommentDTO dto) {
-        User user = userRepository.findById(dto.getUserId()).orElse(null);
-        Product product = productRepository.findById(dto.getProductId()).orElse(null);
+    public Comment insertComment(CommentDTO commentDTO) {
+        User user = userRepository.findById(commentDTO.getUserId()).orElse(null);
+        Product product = productRepository.findById(commentDTO.getProductId()).orElse(null);
         if (user == null || product == null) {
             throw new IllegalArgumentException("User or product not found");
         }
-        return commentRepository.save(Comment.builder()
+        Comment newComment = Comment.builder()
                 .user(user)
                 .product(product)
-                .content(dto.getContent())
-                .build());
+                .content(commentDTO.getContent())
+                .build();
+        return commentRepository.save(newComment);
     }
 
     @Override
     @Transactional
     public void deleteComment(Long commentId) {
+
         commentRepository.deleteById(commentId);
     }
 
     @Override
     @Transactional
-    public void updateComment(Long id, CommentDTO dto) throws DataNotFoundException {
-        Comment comment = commentRepository.findById(id)
+    public void updateComment(Long id, CommentDTO commentDTO) throws DataNotFoundException {
+        Comment existingComment = commentRepository.findById(id)
                 .orElseThrow(() -> new DataNotFoundException("Comment not found"));
-        comment.setContent(dto.getContent());
-        commentRepository.save(comment);
-    }
-
-    @Override
-    public List<CommentResponse> getCommentsByProduct(Long productId) {
-        return commentRepository.findByProductId(productId).stream()
-                .map(CommentResponse::fromComment).collect(Collectors.toList());
+        existingComment.setContent(commentDTO.getContent());
+        commentRepository.save(existingComment);
     }
 
     @Override
     public List<CommentResponse> getCommentsByUserAndProduct(Long userId, Long productId) {
-        return commentRepository.findByUserIdAndProductId(userId, productId).stream()
-                .map(CommentResponse::fromComment).collect(Collectors.toList());
+        List<Comment> comments = commentRepository.findByUserIdAndProductId(userId, productId);
+        return comments
+                .stream()
+                .map(comment -> CommentResponse.fromComment(comment))
+                .collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    public List<CommentResponse> getCommentsByProduct(Long productId) {
+        List<Comment> comments = commentRepository.findByProductId(productId);
+        return comments
+                .stream()
+                .map(comment -> CommentResponse.fromComment(comment))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void generateFakeComments() throws Exception {
+
         Faker faker = new Faker();
         Random random = new Random();
         List<User> users = userRepository.findAll();
         List<Product> products = productRepository.findAll();
-        List<Comment> batch = new ArrayList<>();
-        final int batchSize = 1000;
+        List<Comment> comments = new ArrayList<>();
 
-        for (int i = 0; i < 10_000; i++) {
+        final int totalRecords = 10_000;
+        final int batchSize = 1_000;
+
+        for (int i = 0; i < totalRecords; i++) {
             User user = users.get(random.nextInt(users.size()));
             Product product = products.get(random.nextInt(products.size()));
 
@@ -91,16 +104,18 @@ public class CommentService implements InterfaceCommentService {
                     .user(user)
                     .build();
 
-            LocalDateTime start = LocalDateTime.of(2015, 1, 1, 0, 0);
+            // Random created_at từ 2015 đến hiện tại
+            LocalDateTime startDate = LocalDateTime.of(2015, 1, 1, 0, 0);
+            LocalDateTime endDate = LocalDateTime.now();
             long randomEpoch = ThreadLocalRandom.current()
-                    .nextLong(start.toEpochSecond(ZoneOffset.UTC),
-                            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC));
+                    .nextLong(startDate.toEpochSecond(ZoneOffset.UTC),
+                            endDate.toEpochSecond(ZoneOffset.UTC));
             comment.setCreatedAt(LocalDateTime.ofEpochSecond(randomEpoch, 0, ZoneOffset.UTC));
 
-            batch.add(comment);
-            if (batch.size() >= batchSize) {
-                commentRepository.saveAll(batch);
-                batch.clear();
+            comments.add(comment);
+            if (comments.size() >= batchSize) {
+                commentRepository.saveAll(comments);
+                comments.clear();
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.manh.ecom_be.models;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 

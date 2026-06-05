@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Custom Local Excludes ###
+src/main/resources/logs/
+uploads/

@@ -1,11 +1,11 @@
 package com.manh.ecom_be.components.aspects;
 
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -13,7 +13,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Aspect
 @Component
 public class UserActivityLogger {
-    private final Logger logger = Logger.getLogger(getClass().getName());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Pointcut("within(@org.springframework.web.bind.annotation.RestController *)")
     public void controllerMethods() {}
@@ -22,11 +22,11 @@ public class UserActivityLogger {
     public Object logUserActivity(ProceedingJoinPoint joinPoint) throws Throwable {
         String methodName = joinPoint.getSignature().getName();
 
-        String remoteIp = ((ServletRequestAttributes)
+        String remoteAddress = ((ServletRequestAttributes)
                 RequestContextHolder.currentRequestAttributes())
                 .getRequest().getRemoteAddr();
 
-        logger.info("User activity started: " + methodName + ", IP: " + remoteIp);
+        logger.info("User activity started: " + methodName + ", IP address: " + remoteAddress);
 
         Object result = joinPoint.proceed();
 

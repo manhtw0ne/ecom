@@ -1,64 +1,85 @@
 package com.manh.ecom_be.services.user;
 
-
 import com.manh.ecom_be.components.JwtTokenUtils;
+import com.manh.ecom_be.components.LocalizationUtils;
+import com.manh.ecom_be.dtos.UpdateUserDTO;
 import com.manh.ecom_be.dtos.UserDTO;
 import com.manh.ecom_be.dtos.UserLoginDTO;
+import com.manh.ecom_be.exceptions.DataNotFoundException;
+import com.manh.ecom_be.exceptions.ExpiredTokenException;
+import com.manh.ecom_be.exceptions.InvalidPasswordException;
+import com.manh.ecom_be.exceptions.PermissionDenyException;
 import com.manh.ecom_be.models.Role;
+import com.manh.ecom_be.models.Token;
 import com.manh.ecom_be.models.User;
+import com.manh.ecom_be.repositories.RoleRepository;
+import com.manh.ecom_be.repositories.TokenRepository;
 import com.manh.ecom_be.repositories.UserRepository;
+import com.manh.ecom_be.utils.MessageKeys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+
+import static com.manh.ecom_be.utils.ValidationUtils.isValidEmail;
 
 @Service
 @RequiredArgsConstructor
 public class UserService implements InterfaceUserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenUtils jwtTokenUtil;
+    private final AuthenticationManager authenticationManager;
+    private final LocalizationUtils localizationUtils;
 
     @Override
     @Transactional
     public User createUser(UserDTO userDTO) throws Exception {
-        if (!userDTO.getPhoneNumber().isBlank()
-        && userRepository.existsByPhoneNumber(userDTO.getPhoneNumber())) {
+        if (!userDTO.getPhoneNumber().isBlank() && userRepository.existsByPhoneNumber(userDTO.getPhoneNumber())) {
             throw new DataIntegrityViolationException("Phone number already exists");
-
         }
+
         if (!userDTO.getEmail().isBlank()
-        && userRepository.existByEmail(userDTO.getEmail())) {
+                && userRepository.existsByEmail(userDTO.getEmail())) {
             throw new DataIntegrityViolationException("Email already exists");
         }
 
         Role role = roleRepository.findById(userDTO.getRoleId())
-                .orElseThrow(() -> new DataNotFoundException("Role not found"));
+                .orElseThrow(() -> new DataNotFoundException(
+                        localizationUtils.getLocalizedMessage(MessageKeys.ROLE_DOES_NOT_EXIST)));
 
-        if (role.getName().equalsIgnore(Role.ADMIN)) {
-            throw new PermissionDenyException("Cannot register with admin role");
+        if (role.getName().equalsIgnoreCase(Role.ADMIN)) {
+            throw new PermissionDenyException("Registering admin account is not allowed");
         }
 
         User newUser = User.builder()
                 .fullName(userDTO.getFullName())
                 .phoneNumber(userDTO.getPhoneNumber())
                 .email(userDTO.getEmail())
+                .password(userDTO.getPassword())
                 .address(userDTO.getAddress())
                 .dateOfBirth(userDTO.getDateOfBirth())
                 .facebookAccountId(userDTO.getFacebookAccountId())
                 .googleAccountId(userDTO.getGoogleAccountId())
                 .active(true)
-                .role(role)
                 .build();
 
+        newUser.setRole(role);
+
         if (!userDTO.isSocialLogin()) {
-            newUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));
-        } else {
-            newUser.setPassword(userDTO.getPassword());
+            String password = userDTO.getPassword();
+            String encodedPassword = passwordEncoder.encode(password);
+            newUser.setPassword(encodedPassword);
         }
         return userRepository.save(newUser);
     }
@@ -68,44 +89,32 @@ public class UserService implements InterfaceUserService {
         Optional<User> optionalUser = Optional.empty();
 
         if (userLoginDTO.getPhoneNumber() != null && !userLoginDTO.getPhoneNumber().isBlank()) {
-            optionalUser = userRepository.findByPhoneNumber
-                    (userLoginDTO.getPhoneNumber());
+            optionalUser = userRepository.findByPhoneNumber(userLoginDTO.getPhoneNumber());
         }
 
         if (optionalUser.isEmpty() && userLoginDTO.getEmail() != null) {
             optionalUser = userRepository.findByEmail(userLoginDTO.getEmail());
         }
 
-        User user = optionalUser.orElseThrow(() -> new DataNotDoundException("Wrong phone/email or password"));
-
-        if (!user.isActive()) {
-            throw new DataNotFoundException ("Account is locked");
+        if (optionalUser.isEmpty()) {
+            throw new DataNotFoundException(localizationUtils.getLocalizedMessage(MessageKeys.WRONG_PHONE_PASSWORD));
         }
 
-        if (user.getGoogleAccountId() == null || user.getGoogleAccountId().isEmpty()) {
-            if (!passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword())) {
-                throw new BadCredentialsException("Wrong phone number or password");
-            }
+        User existingUser = optionalUser.get();
+
+        if (!existingUser.isActive()) {
+            throw new DataNotFoundException(localizationUtils.getLocalizedMessage(MessageKeys.USER_IS_LOCKED));
         }
-        return jwtTokenUtil.generateToken(user);
+        return jwtTokenUtil.generateToken(existingUser);
     }
 
     @Override
-    public User getUserDetailsFromToken(String token) throws Exception {
-        String subject = jwtTokenUtil.getSubject(token);
-        return userRepository.findByPhoneNumber(subject)
-                .or(() -> userRepository.findByEmail(subject))
-                .orElseThrow(() -> new DataNotFoundException("User not found"));
-    }
-
-
-    @Override
-    @Transactional
     public String loginSocial(UserLoginDTO userLoginDTO) throws Exception {
         Optional<User> optionalUser = Optional.empty();
 
         Role roleUser = roleRepository.findByName(Role.USER)
-                .orElseThrow(() -> new DataNotFoundException("Role USER not found"));
+                .orElseThrow(() -> new DataNotFoundException(
+                        localizationUtils.getLocalizedMessage(MessageKeys.ROLE_DOES_NOT_EXIST)));
 
         if (userLoginDTO.isGoogleAccountIdValid()) {
             optionalUser = userRepository.findByGoogleAccountId(userLoginDTO.getGoogleAccountId());
@@ -115,42 +124,156 @@ public class UserService implements InterfaceUserService {
                         .fullName(Optional.ofNullable(userLoginDTO.getFullName()).orElse(""))
                         .email(Optional.ofNullable(userLoginDTO.getEmail()).orElse(""))
                         .profileImage(Optional.ofNullable(userLoginDTO.getProfileImage()).orElse(""))
-                        .password("")
                         .role(roleUser)
+                        .googleAccountId(userLoginDTO.getGoogleAccountId())
+                        .password("")
                         .active(true)
                         .build();
+
                 newUser = userRepository.save(newUser);
                 optionalUser = Optional.of(newUser);
             }
         }
-
         else if (userLoginDTO.isFacebookAccountIdValid()) {
             optionalUser = userRepository.findByFacebookAccountId(userLoginDTO.getFacebookAccountId());
 
             if (optionalUser.isEmpty()) {
                 User newUser = User.builder()
-                        .fullName(Optional.ofNullable(userLoginDTO.getFullname()).orElse(""))
+                        .fullName(Optional.ofNullable(userLoginDTO.getFullName()).orElse(""))
                         .email(Optional.ofNullable(userLoginDTO.getEmail()).orElse(""))
                         .profileImage(Optional.ofNullable(userLoginDTO.getProfileImage()).orElse(""))
-                        .googleAccountId(userLoginDTO.getGoogleAccountId())
-                        .password("")
+                        .facebookAccountId(userLoginDTO.getFacebookAccountId())
                         .role(roleUser)
+                        .password("")
                         .active(true)
                         .build();
+
+
                 newUser = userRepository.save(newUser);
                 optionalUser = Optional.of(newUser);
             }
-        }
-
-        else {
+        } else {
             throw new IllegalArgumentException("Invalid social account information");
         }
 
         User user = optionalUser.get();
         if (!user.isActive()) {
-            throw new DataNotFoundException("Account is locked");
+            throw new DataNotFoundException(localizationUtils.getLocalizedMessage(MessageKeys.USER_IS_LOCKED));
         }
 
         return jwtTokenUtil.generateToken(user);
     }
+
+    @Transactional
+    @Override
+    public User updateUser(Long userId, UpdateUserDTO updateUserDTO) throws Exception {
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new DataNotFoundException("User not found"));
+
+        if (updateUserDTO.getFullname() != null) {
+            existingUser.setFullName(updateUserDTO.getFullname());
+        }
+
+//        if (updateUserDTO.getPhoneNumber() != null) {
+//            existingUser.setPhoneNumber(updateUserDTO.getPhoneNumber());
+//        }
+
+        if (updateUserDTO.getAddress() != null) {
+            existingUser.setAddress(updateUserDTO.getAddress());
+        }
+
+        if (updateUserDTO.getDateOfBirth() != null) {
+            existingUser.setDateOfBirth(updateUserDTO.getDateOfBirth());
+        }
+
+        if (updateUserDTO.isFacebookAccountIdValid()) {
+            existingUser.setFacebookAccountId(updateUserDTO.getFacebookAccountId());
+        }
+
+        if (updateUserDTO.isGoogleAccountIdValid()) {
+            existingUser.setGoogleAccountId(updateUserDTO.getGoogleAccountId());
+        }
+
+        if (updateUserDTO.getPassword() != null
+                && !updateUserDTO.getPassword().isEmpty()) {
+            if (!updateUserDTO.getPassword().equals(updateUserDTO.getRetypePassword())) {
+                throw new DataNotFoundException("Password and retype password do not match");
+            }
+            String newPassword = updateUserDTO.getPassword();
+            String encodedPassword = passwordEncoder.encode(newPassword);
+            existingUser.setPassword(encodedPassword);
+        }
+        return userRepository.save(existingUser);
+    }
+
+
+
+    @Override
+    public User getUserDetailsFromToken(String token) throws Exception {
+        if (jwtTokenUtil.isTokenExpired(token)) {
+            throw new ExpiredTokenException("Token is expired");
+        }
+        String subject = jwtTokenUtil.getSubject(token);
+        Optional<User> user;
+        user = userRepository.findByPhoneNumber(subject);
+        if (user.isEmpty() && isValidEmail(subject)) {
+            user = userRepository.findByEmail(subject);
+        }
+        return user.orElseThrow(() -> new Exception("User not found"));
+    }
+
+    @Override
+    public User getUserDetailsFromRefreshToken(String refreshToken) throws Exception {
+        Token existingToken = tokenRepository.findByRefreshToken(refreshToken);
+        return getUserDetailsFromToken(existingToken.getToken());
+    }
+
+    @Override
+    public Page<User> findAll(String keyword, Pageable pageable) {
+        return userRepository.findAll(keyword, pageable);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(Long userId, String newPassword)
+            throws InvalidPasswordException, DataNotFoundException {
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new DataNotFoundException("User not found"));
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        existingUser.setPassword(encodedPassword);
+        userRepository.save(existingUser);
+
+        List<Token> tokens = tokenRepository.findByUser(existingUser);
+        for (Token token : tokens) {
+            tokenRepository.delete(token);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void blockOrEnable(Long userId, Boolean active) throws DataNotFoundException {
+
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new DataNotFoundException("User not found"));
+        existingUser.setActive(active);
+        userRepository.save(existingUser);
+    }
+
+    @Override
+    @Transactional
+    public void changeProfileImage(Long userId, String imageName) throws Exception {
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new DataNotFoundException("User not found"));
+        existingUser.setProfileImage(imageName);
+        userRepository.save(existingUser);
+    }
+
+
+
+
+
+
+
+
+
 }

@@ -1,6 +1,7 @@
 package com.manh.ecom_be.models;
 
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -8,10 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Entity
 @Table(name = "users")
@@ -24,13 +22,14 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "fullname", length = 100)
     private String fullName;
 
-    @Column(name = "phone_number", length = 10)
+    @Column(name = "phone_number", length = 10, nullable = true)
     private String phoneNumber;
 
-    @Column(name = "email", length = 255)
+    @Column(name = "email", length = 255, nullable = true)
     private String email;
 
     @Column(name = "address", length = 200)
@@ -54,22 +53,26 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
     @Column(name = "google_account_id")
     private String googleAccountId;
 
-    @Column(name = "profile_image", length = 255)
-    private String profileImage;
-
     @ManyToOne
     @JoinColumn(name = "role_id")
-    private Role role;
+    private com.manh.ecom_be.models.Role role;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+        List<SimpleGrantedAuthority> authorityList = new ArrayList<>();
+        authorityList.add(new SimpleGrantedAuthority("ROLE_" + role.getName().toUpperCase()));
+        return authorityList;
     }
 
     @Override
     public String getUsername() {
-        if (phoneNumber != null && !phoneNumber.isBlank()) return phoneNumber;
-        return email;
+        if (phoneNumber != null && !phoneNumber.isEmpty()) {
+            return phoneNumber;
+
+        } else if (email != null && !email.isEmpty()) {
+            return email;
+        }
+        return "";
     }
 
     @Override public boolean isAccountNonExpired() { return true; }
@@ -77,6 +80,17 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
     @Override public boolean isCredentialsNonExpired() {return true;}
     @Override public boolean isEnabled() {return active;}
 
-    @Override public Map<String, Object> getAttributes() {return null;}
-    @Override public String getName() {return fullName;}
+    @Override public Map<String, Object> getAttributes() {
+        return new HashMap<String, Object>();
+    }
+
+    @Override public String getName() {
+        return getAttribute("name");
+    }
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+
+
+    @JsonManagedReference
+    private List<Favorite> comments = new ArrayList<>();
 }

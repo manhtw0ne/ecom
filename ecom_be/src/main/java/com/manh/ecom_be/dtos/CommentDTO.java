@@ -3,13 +3,11 @@ package com.manh.ecom_be.dtos;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
-@Builder
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class CommentDTO {
@@ -20,5 +18,6 @@ public class CommentDTO {
     private Long productId;
 
     @NotBlank(message = "Content cannot be blank")
+    @JsonProperty("content")
     private String content;
 }

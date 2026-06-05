@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("${api.prefix}/comments")
@@ -28,56 +29,67 @@ public class CommentController {
             @RequestParam(value = "user_id", required = false) Long userId,
             @RequestParam("product_id") Long productId
     ) {
-        List<CommentResponse> responses = userId == null
-                ? commentService.getCommentsByProduct(productId)
-                : commentService.getCommentsByUserAndProduct(userId, productId);
+        List<CommentResponse> commentResponses;
+
+        if (userId == null) {
+            commentResponses = commentService.getCommentsByProduct(productId);
+        } else {
+            commentResponses = commentService.getCommentsByUserAndProduct(userId, productId);
+        }
 
         return ResponseEntity.ok(ResponseObject.builder()
                 .message("Get comments successfully")
                 .status(HttpStatus.OK)
-                .data(responses)
-                .build());
-    }
-
-    @PostMapping("")
-    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> insertComment(
-            @Valid @RequestBody CommentDTO dto
-    ) {
-        User loginUser = securityUtils.getLoggedInUser();
-
-        if (!loginUser.getId().equals(dto.getUserId())) {
-            return ResponseEntity.badRequest().body(
-                    new ResponseObject("You cannot comment as another user",
-                            HttpStatus.BAD_REQUEST, null)
-                    );
-        }
-        commentService.insertComment(dto);
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Insert comment successfully")
-                .status(HttpStatus.OK)
+                .data(commentResponses)
                 .build());
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ResponseObject> updateComment(
-            @PathVariable Long id,
-            @Valid @RequestBody CommentDTO dto
+            @PathVariable("id") Long commentId,
+            @Valid @RequestBody CommentDTO commentDTO
     ) throws Exception {
         User loginUser = securityUtils.getLoggedInUser();
 
-        if (!loginUser.getId().equals(dto.getUserId())) {
+        if (!Objects.equals(loginUser.getId(), commentDTO.getUserId())) {
             return ResponseEntity.badRequest().body(
-                    new ResponseObject("You cannot update another user's comment",
-                            HttpStatus.BAD_REQUEST, null)
-                    );
+                    new ResponseObject(
+                            "You cannot update another user's comment",
+                            HttpStatus.BAD_REQUEST,
+                            null)
+            );
         }
 
-        commentService.updateComment(id, dto);
-        return ResponseEntity.ok(new ResponseObject("Update comment successfully",
-                        HttpStatus.OK, null)
-                );
+        commentService.updateComment(commentId, commentDTO);
+        return ResponseEntity.ok(
+                new ResponseObject(
+                        "Update comment successfully",
+                HttpStatus.OK, null)
+        );
+    }
+
+    @PostMapping("")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
+    public ResponseEntity<ResponseObject> insertComment(
+            @Valid @RequestBody CommentDTO commentDTO
+    ) {
+        User loginUser = securityUtils.getLoggedInUser();
+
+        if (!Objects.equals(loginUser.getId(), commentDTO.getUserId())) {
+            return ResponseEntity.badRequest().body(
+                    new ResponseObject(
+                            "You cannot comment as another user",
+                            HttpStatus.BAD_REQUEST,
+                            null)
+                    );
+        }
+        commentService.insertComment(commentDTO);
+        return ResponseEntity.ok(
+                ResponseObject.builder()
+                .message("Insert comment successfully")
+                .status(HttpStatus.OK)
+                .build());
     }
 
     @PostMapping("/generateFakeComments")
@@ -85,7 +97,8 @@ public class CommentController {
     public ResponseEntity<ResponseObject> generateFakeComments() throws Exception {
         commentService.generateFakeComments();
         return ResponseEntity.ok(ResponseObject.builder()
-                .message("Generated fake comments successfully")
+                .message("Insert fake comments successfully")
+                .data(null)
                 .status(HttpStatus.OK)
                 .build()
         );

@@ -13,16 +13,16 @@ import java.util.List;
 public class MyKafkaListener {
     @KafkaHandler
     public void listenCategory(Category category) {
-        System.out.println("[KAFKA] Received category: " + category);
+        System.out.println("Received: " + category);
+    }
+
+    @KafkaHandler(isDefault = true)
+    public void unknown(Object object) {
+        System.out.println("Received unknown: " + object);
     }
 
     @KafkaHandler
     public void listenListOfCategories(List<Category> categories) {
-        System.out.println("[KAFKA] Received " + categories.size() + " categories");
-    }
-
-    @KafkaHandler(isDefault = true)
-    public void handleUnknown(Object object) {
-        System.out.println("[KAFKA] Unknown message type: " + object.getClass().getName());
+        System.out.println("Received: " + categories);
     }
 }

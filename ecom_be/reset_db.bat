@@ -1,0 +1,6 @@
+@echo off
+echo Dropping and recreating ecom_db...
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -proot -e "DROP DATABASE IF EXISTS ecom_db; CREATE DATABASE ecom_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+echo Importing schema...
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -proot ecom_db < "D:\Desktop\ecom\ecom_be\ecom_schema.sql"
+echo Done with exit code: %errorlevel%

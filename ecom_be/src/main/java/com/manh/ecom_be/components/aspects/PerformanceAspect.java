@@ -1,10 +1,10 @@
 package com.manh.ecom_be.components.aspects;
 
-
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -12,31 +12,35 @@ import java.util.concurrent.TimeUnit;
 @Aspect
 @Component
 public class PerformanceAspect {
-    private final Logger logger = Logger.getLogger(getClass().getName());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    private String getMethodName(JoinPoint joinPoint) {
+        return joinPoint.getSignature().getName();
+    }
 
     @Pointcut("within(@org.springframework.web.bind.annotation.RestController *)")
     public void controllerMethods() {}
 
     @Before("controllerMethods()")
     public void beforeMethodExecution(JoinPoint joinPoint) {
-        logger.info("Starting execution of " + joinPoint.getSignature().getName());
+        logger.info("Starting execution of " + this.getMethodName(joinPoint));
     }
 
     @After("controllerMethods()")
     public void afterMethodExecution(JoinPoint joinPoint) {
-        logger.info("Finished execution of " + joinPoint.getSignature().getName());
+        logger.info("Finished execution of " + this.getMethodName(joinPoint));
     }
 
     @Around("controllerMethods()")
-    public Object measureExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+    public Object measureControllerMethodExecutionTime(ProceedingJoinPoint proceedingJoinPoint)
+            throws Throwable {
         long start = System.nanoTime();
 
-        Object result = joinPoint.proceed();
-
-        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-        logger.info("Execution of " + joinPoint.getSignature().getName()
-                + " took " + elapsedMs + " ms");
-
-        return result;
+        Object returnValue = proceedingJoinPoint.proceed();
+        long end = System.nanoTime();
+        String methodName = proceedingJoinPoint.getSignature().getName();
+        logger.info("Execution of " + methodName +
+                " took " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
+        return returnValue;
     }
 }

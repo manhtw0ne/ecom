@@ -18,7 +18,7 @@ public class CategoryMessageConverter extends JsonMessageConverter {
 
         typeMapper.setTypePrecedence(Jackson2JavaTypeMapper.TypePrecedence.TYPE_ID);
 
-        typeMapper.addTrustedPackages("com.manh.ecom_be.models");
+        typeMapper.addTrustedPackages("com.manh.ecom_be");
 
         typeMapper.setIdClassMapping(
                 Collections.singletonMap("category", Category.class)

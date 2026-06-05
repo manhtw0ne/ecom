@@ -11,5 +11,4 @@ public interface InterfaceCategoryService {
     List<Category> getAllCategories();
     Category updateCategory(long categoryId, CategoryDTO category);
     Category deleteCategory(long id) throws Exception;
-
 }

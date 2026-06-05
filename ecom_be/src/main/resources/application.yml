@@ -1,58 +1,36 @@
-server:
-  port: 8080
 spring:
+  application:
+    name: ecom
+
+  # Database
   datasource:
-    url: jdbc:mysql://localhost:3306/ecom?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/ecom_db?useSSL=false&serverTimezone=UTC
     username: root
     password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: YOUR_GOOGLE_CLIENT_ID
-            client-secret: YOUR_GOOGLE_CLIENT_SECRET
-            redirect-uri: "http://localhost:4300/auth/google/callback"
-            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-          facebook:
-            client-id: YOUR_FACEBOOK_APP_ID
-            client-secret: YOUR_FACEBOOK_APP_SECRET
-            redirect-uri: "http://localhost:4300/auth/facebook/callback"
-            auth-uri: https://www.facebook.com/v21.0/dialog/oauth
-            token-uri: https://graph.facebook.com/oauth/access_token
-            user-info-uri: https://graph.facebook.com/me?fields=id,name,email,picture.type(large)
-            scope:
-              - email
-              - public_profile
-
-
-
+  # JPA
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: none
+      ddl-auto: none       # Flyway quản lý schema — không để Hibernate tự tạo
     properties:
       hibernate:
-        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
 
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 100MB
-
+  # Flyway
   flyway:
+    enabled: false          # Tắt auto-config, FlywayConfig.java tự quản lý
     locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
 
+  # Redis
   data:
     redis:
-      use-redis-cache: false
       host: localhost
       port: 6379
+      use-redis-cache: true
 
+  # Kafka
   kafka:
     bootstrap-servers: localhost:9092
     producer:
@@ -61,43 +39,86 @@ spring:
         "[spring.json.type.mapping]": "category:com.manh.ecom_be.models.Category"
     consumer:
       value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
-      group-id: shopapp-group
+      group-id: ecom_db-group
       auto-offset-reset: earliest
 
+  # OAuth2
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            redirect-uri: "${GOOGLE_REDIRECT_URI:http://localhost:4300/auth/google/callback}"
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            resource-server:
+              opaque-token:
+                introspection-uri: https://www.googleapis.com/oauth2/v3
+          facebook:
+            client-id: ${FACEBOOK_CLIENT_ID:your-facebook-client-id}
+            client-secret: ${FACEBOOK_CLIENT_SECRET:your-facebook-client-secret}
+            redirect-uri: "${FACEBOOK_REDIRECT_URI:http://localhost:4300/auth/facebook/callback}"
+            token-uri: https://graph.facebook.com/v13.0/oauth/access_token
+            user-info-uri: https://graph.facebook.com/me?fields=id,name,email,picture
+
+  # File upload
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # i18n
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    default-locale: en
+
+  # Thymeleaf
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+
+# JWT — phải ở root level
+jwt:
+  expiration: 2592000              # 30 ngày (giây)
+  expiration-refresh-token: 31536000  # 365 ngày (giây)
+  secretKey: TaqlmGv1iEDMRiFp/pHuID1+T84IABfuA0xXh4GhiUI=
+
+# API prefix — phải ở root level
 api:
   prefix: /api/v1
 
-jwt:
-  expiration: 2592000
-  expiration-refresh-token: 5184000
-  secretKey: TaqlmGv1iEDMRiFp/pHuID1+T84IABfuA0xXh4GhiUI=
-
+# Logging
 logging:
   level:
     org:
       springframework.security: DEBUG
 
+# Swagger / OpenAPI
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
   api-docs:
     path: /api-docs
+  show-actuator: true
 
+# Actuator / Health check — phải ở root level
 management:
+  endpoint:
+    health:
+      show-details: always
   endpoints:
     web:
       base-path: /api/v1/actuator
       exposure:
-        include: "health,info"
-  endpoint:
-    health:
-      show-details: always
+        include: "health, info"
 
+# VNPay
 vnpay:
   pay-url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-  return-url: "http://localhost:4200/payments/payment-callback"
-  tmn-code: "YOUR_TMN_CODE"       # L?y t? VNPay sandbox
-  secret-key: "YOUR_SECRET_KEY"   # L?y t? VNPay sandbox
+  return-url: "${VNPAY_RETURN_URI:http://localhost:4200/payments/payment-callback}"
+  tmn-code: "OMZF7JB7"
+  secret-key: "J6S80U7KQ2LKSIK0Q8QJK6K8LVVGPUVD"
   api-url: "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
-
-

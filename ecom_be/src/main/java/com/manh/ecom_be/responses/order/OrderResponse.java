@@ -1,6 +1,6 @@
 package com.manh.ecom_be.responses.order;
 
-
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.manh.ecom_be.models.Order;
 import com.manh.ecom_be.models.OrderDetail;
@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -19,29 +20,65 @@ import java.util.List;
 @NoArgsConstructor
 public class OrderResponse {
     private Long id;
+
     @JsonProperty("user_id")
+    private Long userId;
+
+    @JsonProperty("fullname")
     private String fullName;
-    private String email;
+
+    @JsonProperty("phone_number")
     private String phoneNumber;
+
+    @JsonProperty("email")
+    private String email;
+
+    @JsonProperty("address")
     private String address;
+
+    @JsonProperty("note")
     private String note;
+
+    @JsonProperty("order_date")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
     private LocalDateTime orderDate;
+
+
+    @JsonProperty("status")
     private String status;
-    private Float totalMoney;
+
+    @JsonProperty("total_money")
+    private double totalMoney;
+
+    @JsonProperty("shipping_method")
     private String shippingMethod;
+
+    @JsonProperty("shipping_address")
     private String shippingAddress;
+
+    @JsonProperty("shipping_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate shippingDate;
+
+    @JsonProperty("payment_method")
     private String paymentMethod;
-    private Boolean active;
-    private List<OrderDetail> orderDetails;
+
+    @JsonProperty("order_details")
+    private List<OrderDetailResponse> orderDetails;
 
     public static OrderResponse fromOrder(Order order) {
-        return OrderResponse.builder()
+        List<OrderDetail> orderDetails = order.getOrderDetails();
+        List<OrderDetailResponse> orderDetailResponses = orderDetails
+                .stream()
+                .map(orderDetail -> OrderDetailResponse.fromOrderDetail(orderDetail)).toList();
+
+        OrderResponse orderResponse =  OrderResponse
+                .builder()
                 .id(order.getId())
                 .userId(order.getUser().getId())
                 .fullName(order.getFullName())
-                .email(order.getEmail())
                 .phoneNumber(order.getPhoneNumber())
+                .email(order.getEmail())
                 .address(order.getAddress())
                 .note(order.getNote())
                 .orderDate(order.getOrderDate())
@@ -51,8 +88,8 @@ public class OrderResponse {
                 .shippingAddress(order.getShippingAddress())
                 .shippingDate(order.getShippingDate())
                 .paymentMethod(order.getPaymentMethod())
-                .active(order.getActive())
-                .orderDetails(order.getOrderDetails())
+                .orderDetails(orderDetailResponses) //important
                 .build();
+        return orderResponse;
     }
 }

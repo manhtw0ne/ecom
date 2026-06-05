@@ -14,27 +14,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("${api.prefix}/coupons")
+//@Validated
+//Dependency Injection
 @RequiredArgsConstructor
 public class CouponController {
     private final CouponService couponService;
-
     @GetMapping("/calculate")
     public ResponseEntity<ResponseObject> calculateCouponValue(
             @RequestParam("couponCode") String couponCode,
-            @RequestParam("totalAmount") double totalAmount
-    ) {
-        try {
-
+            @RequestParam("totalAmount") double totalAmount) {
         double finalAmount = couponService.calculateCouponValue(couponCode, totalAmount);
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Calculate coupon successfully")
-                .status(httpStatus.OK)
-                .data(CouponCalculationResponse.builder().result(finalAmount).build())
-                .build());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ResponseObject.builder()
-                    .message(e.getMessage())
-                    .status(HttpStatus.BAD_REQUEST).build());
-        }
+        CouponCalculationResponse couponCalculationResponse = CouponCalculationResponse.builder()
+                .result(finalAmount)
+                .build();
+        return ResponseEntity.ok(new ResponseObject(
+                "Calculate coupon successfully",
+                HttpStatus.OK,
+                couponCalculationResponse
+        ));
     }
 }

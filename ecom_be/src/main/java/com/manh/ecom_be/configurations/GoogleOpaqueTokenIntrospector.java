@@ -1,13 +1,17 @@
 package com.manh.ecom_be.configurations;
 
 import com.manh.ecom_be.models.User;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionAuthenticatedPrincipal;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.HashMap;
 import java.util.Map;
 
+
+@RequiredArgsConstructor
 public class GoogleOpaqueTokenIntrospector implements OpaqueTokenIntrospector {
     private final WebClient userInfoClient;
 
@@ -29,6 +33,5 @@ public class GoogleOpaqueTokenIntrospector implements OpaqueTokenIntrospector {
         return new OAuth2IntrospectionAuthenticatedPrincipal(
                 userInfo.getUsername(), attributes, null
         );
-
     }
 }

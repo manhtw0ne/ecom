@@ -3,10 +3,12 @@ package com.manh.ecom_be.responses;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.manh.ecom_be.responses.user.UserResponse;
 import jakarta.persistence.MappedSuperclass;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Getter

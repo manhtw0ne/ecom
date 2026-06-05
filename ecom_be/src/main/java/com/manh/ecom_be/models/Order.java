@@ -19,7 +19,8 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class Order {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
@@ -43,6 +44,7 @@ public class Order {
     @Column(name = "order_date")
     private LocalDateTime orderDate;
 
+    @Column(name = "status")
     private String status;
 
     @Column(name = "total_money")
@@ -55,7 +57,7 @@ public class Order {
     private String shippingAddress = "";
 
     @Column(name = "shipping_date")
-    private String shippingDate;
+    private LocalDate shippingDate;
 
     @Column(name = "tracking_number")
     private String trackingNumber;
@@ -63,17 +65,19 @@ public class Order {
     @Column(name = "payment_method")
     private String paymentMethod = "";
 
+
+    @Column(name = "is_active")
     private Boolean active;
 
-    @Column(name = "vnp_txn_ref")
+    @Column(name = "vnp_txn_ref", nullable = true)
     private String vnpTxnRef;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
-    private List<OrderDetails> orderDetails;
+    private List<OrderDetail> orderDetails;
 
     @ManyToOne
     @JoinColumn(name = "coupon_id", nullable = true)
     @JsonBackReference
-    private Coupon coupon;
+    private Coupon coupon = null;
 }

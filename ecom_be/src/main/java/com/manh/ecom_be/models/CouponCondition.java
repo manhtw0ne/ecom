@@ -10,9 +10,13 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "coupon_conditions")
 @Getter
-@Setter @AllArgsConstructor @NoArgsConstructor @Builder
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class CouponCondition {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

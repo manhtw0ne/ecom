@@ -1,4 +1,0 @@
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS facebook_account_id VARCHAR(255);
-ADD COLUMN IF NOT EXISTS google_account_id VARCHAR(255);
-ADD COLUMN IF NOT EXIST profile_image VARCHAR(255);

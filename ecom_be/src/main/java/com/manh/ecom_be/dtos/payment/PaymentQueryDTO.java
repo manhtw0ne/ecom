@@ -15,4 +15,8 @@ public class PaymentQueryDTO {
 
     @JsonProperty("trans_date")
     private String transDate;
+
+    @JsonProperty("ip_address")
+    private String ipAddress;
+
 }

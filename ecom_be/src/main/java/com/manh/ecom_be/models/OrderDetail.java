@@ -7,10 +7,13 @@ import lombok.*;
 @Entity
 @Table(name = "order_details")
 @Getter
-@Setter @AllArgsConstructor @NoArgsConstructor
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class OrderDetail {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
@@ -22,17 +25,21 @@ public class OrderDetail {
     @JoinColumn(name = "product_id")
     private Product product;
 
-    @Column(nullable = false)
+    @Column(name = "price", nullable = false)
     private Float price;
 
     @Column(name = "number_of_products", nullable = false)
     private int numberOfProducts;
 
     @Column(name = "total_money", nullable = false)
-    private int numberOfProducts;
-
-    @Column(name = "total_money", nullable = false)
     private Float totalMoney;
 
+
+    @Column(name = "color")
     private String color;
+
+    @ManyToOne
+    @JoinColumn(name = "coupon_id", nullable = true)
+    @JsonBackReference
+    private Coupon coupon;
 }

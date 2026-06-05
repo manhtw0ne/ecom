@@ -1,5 +1,6 @@
 package com.manh.ecom_be.repositories;
 
+import com.manh.ecom_be.models.Category;
 import com.manh.ecom_be.models.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,10 +15,16 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsByName(String name);
 
+
+    Page<Product> findAll(Pageable pageable);
+    List<Product> findByCategory(Category category);
+
+
     @Query("SELECT p FROM Product p WHERE " +
-    "(:categoryId IS NULL OR :categoryId = 0 OR p.category.id = :categoryId) " +
+            "(:categoryId IS NULL OR :categoryId = 0 OR p.category.id = :categoryId) " +
             "AND (:keyword IS NULL OR :keyword = '' " +
-            "OR p.name LIKE %:keyword% OR p.description LIKE %:keyword%)")
+            "OR p.name LIKE %:keyword% " +
+            "OR p.description LIKE %:keyword%)")
     Page<Product> searchProducts(
             @Param("categoryId") Long categoryId,
             @Param("keyword") String keyword,

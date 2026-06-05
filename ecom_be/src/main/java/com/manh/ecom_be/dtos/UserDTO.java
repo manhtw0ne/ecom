@@ -16,7 +16,7 @@ import java.util.Date;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserDTO {
+public class UserDTO extends SocialAccountDTO{
     @JsonProperty("fullname")
     private String fullName;
 
@@ -26,13 +26,14 @@ public class UserDTO {
     @JsonProperty("email")
     private String email;
 
+    private String address;
+
     @NotBlank(message = "Password cannot be blank")
     private String password;
 
     @JsonProperty("retype_password")
     private String retypePassword;
 
-    private String address;
 
     @JsonProperty("date_of_birth")
     private Date dateOfBirth;
@@ -43,8 +44,8 @@ public class UserDTO {
     @JsonProperty("google_account_id")
     private String googleAccountId;
 
-    @JsonProperty("role_id")
     @NotNull(message = "Role ID is required")
+    @JsonProperty("role_id")
     private Long roleId;
 
     @JsonProperty("is_social_login")

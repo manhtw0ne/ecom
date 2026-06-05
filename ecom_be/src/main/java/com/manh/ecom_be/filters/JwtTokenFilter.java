@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.util.Pair;
 import org.springframework.security.authentication.CachingUserDetailsService;
@@ -25,6 +26,9 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+
+
+
 public class JwtTokenFilter extends OncePerRequestFilter {
     @Value("${api.prefix}")
     private String apiPrefix;
@@ -32,9 +36,10 @@ public class JwtTokenFilter extends OncePerRequestFilter {
     private final JwtTokenUtils jwtTokenUtil;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain)
         throws ServletException, IOException {
         try {
             if (isBypassToken(request)) {
@@ -45,23 +50,30 @@ public class JwtTokenFilter extends OncePerRequestFilter {
             final String authHeader = request.getHeader
                     ("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer")) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing token");
+                response.sendError(
+                        HttpServletResponse.SC_UNAUTHORIZED,
+                        "authHeader null or not started with Bearer");
                 return;
             }
 
             final String token = authHeader.substring(7);
-            final String subject = jwtTokenUtil.getSubject(token);
+            final String phoneNumber = jwtTokenUtil.getSubject(token);
 
-            if (subject != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User userDetails = (User) userDetailsService.loadUserByUsername(subject);
+            if (phoneNumber != null
+                    && SecurityContextHolder.getContext().getAuthentication() == null) {
+                User userDetails = (User) userDetailsService.loadUserByUsername(phoneNumber);
+
                 if (jwtTokenUtil.validateToken(token, userDetails))
                 {
-                    UsernamePasswordAuthenticationToken authToken =
+                    UsernamePasswordAuthenticationToken authenticationToken =
                             new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities()
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
                             );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    authenticationToken.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
             }
             filterChain.doFilter(request, response);
@@ -71,38 +83,56 @@ public class JwtTokenFilter extends OncePerRequestFilter {
         }
     }
 
-    private boolean isBypassToken(HttpServletRequest request) {
-        final List<Pair<String, String>> bypass = Arrays.asList(
-                Pair.of(apiPrefix + "/users/register", "POST"),
-                Pair.of(apiPrefix + "/users/login", "POST"),
-                Pair.of(apiPrefix + "/users/refreshToken",   "POST"),
-                Pair.of(apiPrefix + "/roles**",              "GET"),
-                Pair.of(apiPrefix + "/products**",           "GET"),
-                Pair.of(apiPrefix + "/categories**",         "GET"),
-                Pair.of(apiPrefix + "/comments**",           "GET"),
-                Pair.of(apiPrefix + "/actuator/**",          "GET"),
-                Pair.of(apiPrefix + "/coupons**", "GET"),
-                Pair.of(apiPrefix + "/users/auth/social-login**", "GET"),
-                Pair.of(apiPrefix + "/users/auth/social/callback**", "GET"),
-                Pair.of("/api-docs",                         "GET"),
-                Pair.of("/swagger-ui/**",                    "GET")
+    private boolean isBypassToken(@NonNull HttpServletRequest request) {
+        final List<Pair<String, String>> bypassTokens = Arrays.asList(// Healthcheck request, no JWT token required
+                Pair.of(String.format("%s/healthcheck/health", apiPrefix), "GET"),
+                Pair.of(String.format("%s/actuator/**", apiPrefix), "GET"),
 
-                // Swagger UI
-                Pair.of("/api-docs",             "GET"),
-                Pair.of("/api-docs/**",          "GET"),
-                Pair.of("/swagger-resources",    "GET"),
-                Pair.of("/swagger-resources/**", "GET"),
-                Pair.of("/swagger-ui/**",        "GET"),
-                Pair.of("/swagger-ui.html",      "GET"),
+                Pair.of(String.format("%s/roles**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/policies**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/comments**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/coupons**", apiPrefix), "GET"),
 
-                // Actuator
-                Pair.of(apiPrefix + "/actuator/**", "GET"),
-                Pair.of(apiPrefix + "/healthcheck/**", "GET")
+                Pair.of(String.format("%s/products**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/categories**", apiPrefix), "GET"),
+
+                Pair.of(String.format("%s/users/register", apiPrefix), "POST"),
+                Pair.of(String.format("%s/users/login", apiPrefix), "POST"),
+                Pair.of(String.format("%s/users/profile-images/**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/users/refreshToken", apiPrefix), "POST"),
+                Pair.of(String.format("%s/users/auth/social/callback", apiPrefix), "GET"),
+
+                // Swagger
+                Pair.of("/api-docs","GET"),
+                Pair.of("/api-docs/**","GET"),
+                Pair.of("/swagger-resources","GET"),
+                Pair.of("/swagger-resources/**","GET"),
+                Pair.of("/configuration/ui","GET"),
+                Pair.of("/configuration/security","GET"),
+                Pair.of("/swagger-ui/**","GET"),
+                Pair.of("/swagger-ui.html", "GET"),
+                Pair.of("/swagger-ui/index.html", "GET"),
+
+                //Đăng nhập social
+                Pair.of(String.format("%s/users/auth/social-login**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/users/auth/social/callback**", apiPrefix), "GET"),
+
+                Pair.of(String.format("%s/payments**", apiPrefix), "GET"),
+                Pair.of(String.format("%s/payments**", apiPrefix), "POST")
         );
 
-        String path = request.getServletPath();
-        String method = request.getMethod();
-        return bypass.stream().anyMatch(p -> path.matches(p.getFirst().replace("**", ".*"))
-                && method.equalsIgnoreCase(p.getSecond()));
+        String requestPath = request.getServletPath();
+        String requestMethod = request.getMethod();
+
+        for (Pair<String, String> token : bypassTokens) {
+            String path = token.getFirst();
+            String method = token.getSecond();
+
+            if (requestPath.matches(path.replace("**", ".*"))
+                    && requestMethod.equalsIgnoreCase(method)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

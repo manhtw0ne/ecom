@@ -1,0 +1,30 @@
+services:
+  redis-infra:
+    image: redis:7.2.3
+    container_name: redis-infra
+    ports:
+      - "6379:6379"
+    restart: always
+
+  zookeeper-infra:
+    image: confluentinc/cp-zookeeper:7.5.3
+    container_name: zookeeper-infra
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka-infra:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: kafka-infra
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-infra:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper-infra

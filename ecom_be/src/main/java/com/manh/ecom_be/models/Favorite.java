@@ -13,7 +13,8 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class Favorite {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne

@@ -27,20 +27,31 @@ public class VNPayService implements InterfaceVNPayService {
     private final VNPayUtils vnPayUtils;
 
     @Override
-    public String createPaymentUrl(PaymentDTO paymentDto, HttpServletRequest request) {
+    public String createPaymentUrl(PaymentDTO paymentDto, HttpServletRequest httpRequest) {
+        String version = "2.1.0";
+        String command = "pay";
+        String orderType = "other";
+
         long amount = paymentDto.getAmount() * 100;
-        String transactionRef = vnPayUtils.getRandomNumber(8);
-        String clientIp = vnPayUtils.getIpAddress(request);
+        String bankCode = paymentDto.getBankCode();
+
+        String transactionReference = vnPayUtils.getRandomNumber(8);
+        String clientIpAddress = vnPayUtils.getIpAddress(httpRequest);
+        String terminalCode = vnPayConfig.getVnpTmnCode();
 
         Map<String, String> params = new HashMap<>();
-        params.put("vnp_Version", "2.1.0");
-        params.put("vnp_Command", "pay");
-        params.put("vnp_TmnCode", vnPayConfig.getVnpTmnCode());
+        params.put("vnp_Version", version);
+        params.put("vnp_Command", command);
+        params.put("vnp_TmnCode", terminalCode);
         params.put("vnp_Amount", String.valueOf(amount));
         params.put("vnp_CurrCode", "VND");
-        params.put("vnp_TxnRef", transactionRef);
-        params.put("vnp_OrderInfo", "Thanh toan don hang:" + transactionRef);
-        params.put("vnp_OrderType", "other");
+
+        if (bankCode != null && !bankCode.isEmpty()) {
+            params.put("vnp_BankCode", bankCode);
+        }
+        params.put("vnp_TxnRef", transactionReference);
+        params.put("vnp_OrderInfo", "Thanh toan don hang:" + transactionReference);
+        params.put("vnp_OrderType", orderType);
 
         String locale = paymentDto.getLanguage();
         if (locale != null && !locale.isEmpty()) {
@@ -50,30 +61,35 @@ public class VNPayService implements InterfaceVNPayService {
         }
 
         params.put("vnp_ReturnUrl", vnPayConfig.getVnpReturnUrl());
-        params.put("vnp_IpAddr", clientIp);
+        params.put("vnp_IpAddr", clientIpAddress);
 
-        SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMddHHmmss");
-        fmt.setTimeZone(TimeZone.getTimeZone("Etc/GMT+7"));
-        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
-        params.put("vnp_CreateDate", fmt.format(cal.getTime()));
-        cal.add(Calendar.MINUTE, 15);
-        params.put("vnp_ExpireDate", fmt.format(cal.getTime()));
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Etc/GTM+7"));
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+        String createDate = dateFormat.format(calendar.getTime());
+        params.put("vnp_CreateDate", createDate);
 
-        List<String> fieldNames = new ArrayList<>(params.keySet());
-        Collections.sort(fieldNames);
+        calendar.add(Calendar.MINUTE, 15);
+        String expirationDate = dateFormat.format(calendar.getTime());
+        params.put("vnp_ExpireDate", expirationDate);
+
+        List<String> sortedFieldNames = new ArrayList<>(params.keySet());
+        Collections.sort(sortedFieldNames);
+
         StringBuilder hashData = new StringBuilder();
         StringBuilder queryData = new StringBuilder();
 
-        for (Iterator<String> it = fieldNames.iterator(); it.hasNext();) {
-            String name = it.next();
-            String value = params.get(name);
-            if (value != null && !value.isEmpty()) {
-                hashData.append(name).append('=')
-                        .append(URLEncoder.encode(value, StandardCharsets.US_ASCII));
-                queryData.append(URLEncoder.encode(name, StandardCharsets.US_ASCII))
+        for (Iterator<String> iterator = sortedFieldNames.iterator(); iterator.hasNext();) {
+            String fieldName = iterator.next();
+            String fieldValue = params.get(fieldName);
+
+
+            if (fieldValue != null && !fieldValue.isEmpty()) {
+                hashData.append(fieldName).append('=')
+                        .append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+                queryData.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII))
                         .append('=')
-                        .append(URLEncoder.encode(value, StandardCharsets.US_ASCII));
-                if (it.hasNext()) {
+                        .append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+                if (iterator.hasNext()) {
                     hashData.append('&');
                     queryData.append('&');
                 }
@@ -81,7 +97,8 @@ public class VNPayService implements InterfaceVNPayService {
         }
 
         String secureHash = vnPayUtils.hmacSHA512(vnPayConfig.getSecretKey(), hashData.toString());
-        return vnPayConfig.getVnpPayUrl() + "?" + queryData + "&vnp_SecureHash=" + secureHash;
+        queryData.append("&vnp_SecureHash=").append(secureHash);
+        return vnPayConfig.getVnpPayUrl() + "?" + queryData;
     }
 
     @Override
