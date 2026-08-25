@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,7 +20,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Order {
+@SQLDelete(sql = "UPDATE orders SET is_deleted = 1 WHERE id = ?")
+@SQLRestriction("is_deleted = 0")
+public class Order extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -65,9 +69,12 @@ public class Order {
     @Column(name = "payment_method")
     private String paymentMethod = "";
 
-
     @Column(name = "is_active")
     private Boolean active;
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 
     @Column(name = "vnp_txn_ref", nullable = true)
     private String vnpTxnRef;

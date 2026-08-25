@@ -4,6 +4,8 @@ package com.manh.ecom_be.models;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +18,8 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 @EntityListeners(ProductListener.class)
+@SQLDelete(sql = "UPDATE products SET is_deleted = 1 WHERE id = ?")
+@SQLRestriction("is_deleted = 0")
 public class Product extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +39,10 @@ public class Product extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 
     @OneToMany(mappedBy = "product",
             cascade = CascadeType.ALL,

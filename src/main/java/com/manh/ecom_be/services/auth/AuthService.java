@@ -9,6 +9,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -21,6 +22,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthService implements InterfaceAuthService {
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
@@ -127,7 +129,7 @@ public class AuthService implements InterfaceAuthService {
                         });
 
             default:
-                System.out.println("Unsupported login type: " + loginType);
+                log.warn("Unsupported login type: {}", loginType);
                 return null;
         }
     }

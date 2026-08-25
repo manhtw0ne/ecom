@@ -4,7 +4,7 @@ package com.manh.ecom_be.controllers;
 import com.manh.ecom_be.components.SecurityUtils;
 import com.manh.ecom_be.dtos.CommentDTO;
 import com.manh.ecom_be.models.User;
-import com.manh.ecom_be.responses.ResponseObject;
+import com.manh.ecom_be.responses.ApiResponse;
 import com.manh.ecom_be.responses.comment.CommentResponse;
 import com.manh.ecom_be.services.comment.CommentService;
 import jakarta.validation.Valid;
@@ -25,7 +25,7 @@ public class CommentController {
     private final SecurityUtils securityUtils;
 
     @GetMapping("")
-    public ResponseEntity<ResponseObject> getAllComments(
+    public ResponseEntity<ApiResponse<List<CommentResponse>>> getAllComments(
             @RequestParam(value = "user_id", required = false) Long userId,
             @RequestParam("product_id") Long productId
     ) {
@@ -37,16 +37,12 @@ public class CommentController {
             commentResponses = commentService.getCommentsByUserAndProduct(userId, productId);
         }
 
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Get comments successfully")
-                .status(HttpStatus.OK)
-                .data(commentResponses)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(commentResponses, "Get comments successfully"));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> updateComment(
+    public ResponseEntity<ApiResponse<?>> updateComment(
             @PathVariable("id") Long commentId,
             @Valid @RequestBody CommentDTO commentDTO
     ) throws Exception {
@@ -54,53 +50,32 @@ public class CommentController {
 
         if (!Objects.equals(loginUser.getId(), commentDTO.getUserId())) {
             return ResponseEntity.badRequest().body(
-                    new ResponseObject(
-                            "You cannot update another user's comment",
-                            HttpStatus.BAD_REQUEST,
-                            null)
-            );
+                    ApiResponse.error(HttpStatus.BAD_REQUEST, "You cannot update another user's comment"));
         }
 
         commentService.updateComment(commentId, commentDTO);
-        return ResponseEntity.ok(
-                new ResponseObject(
-                        "Update comment successfully",
-                HttpStatus.OK, null)
-        );
+        return ResponseEntity.ok(ApiResponse.success(null, "Update comment successfully"));
     }
 
     @PostMapping("")
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> insertComment(
+    public ResponseEntity<ApiResponse<?>> insertComment(
             @Valid @RequestBody CommentDTO commentDTO
     ) {
         User loginUser = securityUtils.getLoggedInUser();
 
         if (!Objects.equals(loginUser.getId(), commentDTO.getUserId())) {
             return ResponseEntity.badRequest().body(
-                    new ResponseObject(
-                            "You cannot comment as another user",
-                            HttpStatus.BAD_REQUEST,
-                            null)
-                    );
+                    ApiResponse.error(HttpStatus.BAD_REQUEST, "You cannot comment as another user"));
         }
         commentService.insertComment(commentDTO);
-        return ResponseEntity.ok(
-                ResponseObject.builder()
-                .message("Insert comment successfully")
-                .status(HttpStatus.OK)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(null, "Insert comment successfully"));
     }
 
     @PostMapping("/generateFakeComments")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> generateFakeComments() throws Exception {
+    public ResponseEntity<ApiResponse<?>> generateFakeComments() throws Exception {
         commentService.generateFakeComments();
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Insert fake comments successfully")
-                .data(null)
-                .status(HttpStatus.OK)
-                .build()
-        );
+        return ResponseEntity.ok(ApiResponse.success(null, "Insert fake comments successfully"));
     }
 }

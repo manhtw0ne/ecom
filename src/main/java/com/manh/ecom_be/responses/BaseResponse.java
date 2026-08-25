@@ -3,19 +3,15 @@ package com.manh.ecom_be.responses;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.manh.ecom_be.responses.user.UserResponse;
-import jakarta.persistence.MappedSuperclass;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@MappedSuperclass
 public class BaseResponse {
     @JsonProperty("created_at")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", shape = JsonFormat.Shape.STRING)

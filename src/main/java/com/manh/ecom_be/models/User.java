@@ -4,6 +4,8 @@ package com.manh.ecom_be.models;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,6 +20,8 @@ import java.util.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE users SET is_deleted = 1 WHERE id = ?")
+@SQLRestriction("is_deleted = 0")
 public class User extends BaseEntity implements UserDetails, OAuth2User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,6 +56,10 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
 
     @Column(name = "google_account_id")
     private String googleAccountId;
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 
     @ManyToOne
     @JoinColumn(name = "role_id")
@@ -89,8 +97,6 @@ public class User extends BaseEntity implements UserDetails, OAuth2User {
     }
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-
-
     @JsonManagedReference
-    private List<Favorite> comments = new ArrayList<>();
+    private List<Favorite> favorites = new ArrayList<>();
 }

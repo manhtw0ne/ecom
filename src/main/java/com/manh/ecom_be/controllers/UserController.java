@@ -11,7 +11,7 @@ import com.manh.ecom_be.exceptions.InvalidPasswordException;
 import com.manh.ecom_be.models.Token;
 import com.manh.ecom_be.models.User;
 import com.manh.ecom_be.responses.user.LoginResponse;
-import com.manh.ecom_be.responses.ResponseObject;
+import com.manh.ecom_be.responses.ApiResponse;
 import com.manh.ecom_be.responses.user.UserListResponse;
 import com.manh.ecom_be.responses.user.UserResponse;
 import com.manh.ecom_be.services.auth.InterfaceAuthService;
@@ -35,8 +35,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -57,7 +55,7 @@ public class UserController {
 
     @GetMapping("")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> getAllUser(
+    public ResponseEntity<ApiResponse<UserListResponse>> getAllUser(
             @RequestParam(defaultValue = "", required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int limit
@@ -77,41 +75,17 @@ public class UserController {
                 .totalPages(totalPages)
                 .build();
 
-        return ResponseEntity.ok().body(ResponseObject.builder()
-                .message("Get user list successfully")
-                .status(HttpStatus.OK)
-                .data(userListResponse)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(userListResponse, "Get user list successfully"));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ResponseObject> createUser(
-            @Valid @RequestBody UserDTO userDTO,
-            BindingResult result
+    public ResponseEntity<ApiResponse<?>> createUser(
+            @Valid @RequestBody UserDTO userDTO
     ) throws Exception {
-        if (result.hasErrors()) {
-            List<String> errorMessages = result.getFieldErrors()
-                    .stream()
-                    .map(FieldError::getDefaultMessage)
-                    .toList();
-            return ResponseEntity.badRequest().body(
-                    ResponseObject.builder()
-                            .status(HttpStatus.BAD_REQUEST)
-                            .data(null)
-                            .message(errorMessages.toString())
-                            .build()
-            );
-        }
-
         if (userDTO.getEmail() == null || userDTO.getEmail().trim().isBlank()) {
             if (userDTO.getPhoneNumber() == null || userDTO.getPhoneNumber().isBlank()) {
                 return ResponseEntity.badRequest().body(
-                        ResponseObject.builder()
-                                .status(HttpStatus.BAD_REQUEST)
-                                .data(null)
-                                .message("At least email or phone number is required")
-                                .build()
-                );
+                        ApiResponse.error(HttpStatus.BAD_REQUEST, "At least email or phone number is required"));
             } else {
                 if (!ValidationUtils.isValidPhoneNumber(userDTO.getPhoneNumber())) {
                     throw new Exception("Invalid phone number");
@@ -124,23 +98,17 @@ public class UserController {
         }
 
         if (!userDTO.getPassword().equals(userDTO.getRetypePassword())) {
-            return ResponseEntity.badRequest().body(ResponseObject.builder()
-                    .status(HttpStatus.BAD_REQUEST)
-                    .data(null)
-                    .message(localizationUtils.getLocalizedMessage(MessageKeys.PASSWORD_NOT_MATCH))
-                    .build());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error(HttpStatus.BAD_REQUEST,
+                            localizationUtils.getLocalizedMessage(MessageKeys.PASSWORD_NOT_MATCH)));
         }
 
         User user = userService.createUser(userDTO);
-        return ResponseEntity.ok(ResponseObject.builder()
-                .status(HttpStatus.CREATED)
-                .data(UserResponse.fromUser(user))
-                .message("Account registration successful")
-                .build());
+        return ResponseEntity.ok(ApiResponse.created(UserResponse.fromUser(user), "Account registration successful"));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ResponseObject> login(
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
             @Valid @RequestBody UserLoginDTO userLoginDTO,
             HttpServletRequest request
     ) throws Exception {
@@ -159,16 +127,11 @@ public class UserController {
                 .id(userDetail.getId())
                 .build();
 
-        return ResponseEntity.ok().body(
-                ResponseObject.builder()
-                        .message("Login successfully")
-                        .data(loginResponse)
-                        .status(HttpStatus.OK)
-                        .build());
+        return ResponseEntity.ok(ApiResponse.success(loginResponse, "Login successfully"));
     }
 
     // private - được gọi nội bộ từ callback()
-    private ResponseEntity<ResponseObject> loginSocial(
+    private ResponseEntity<ApiResponse<LoginResponse>> loginSocial(
             @Valid @RequestBody UserLoginDTO userLoginDTO,
             HttpServletRequest request
     ) throws Exception {
@@ -187,13 +150,7 @@ public class UserController {
                 .id(userDetail.getId())
                 .build();
 
-        return ResponseEntity.ok().body(
-                ResponseObject.builder()
-                        .message("Login successfully")
-                        .data(loginResponse)
-                        .status(HttpStatus.OK)
-                        .build()
-        );
+        return ResponseEntity.ok(ApiResponse.success(loginResponse, "Login successfully"));
     }
 
     private boolean isMobileDevice(String userAgent) {
@@ -201,7 +158,7 @@ public class UserController {
     }
 
     @PostMapping("/refreshToken")
-    public ResponseEntity<ResponseObject> refreshToken(
+    public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(
             @Valid @RequestBody RefreshTokenDTO refreshTokenDTO) throws Exception {
         User userDetail = userService.getUserDetailsFromRefreshToken(refreshTokenDTO.getRefreshToken());
         Token jwtToken = tokenService.refreshToken(refreshTokenDTO.getRefreshToken(), userDetail);
@@ -215,33 +172,23 @@ public class UserController {
                 .id(userDetail.getId())
                 .build();
 
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Refresh token successfully")
-                .data(loginResponse)
-                .status(HttpStatus.OK)
-                .build()
-        );
+        return ResponseEntity.ok(ApiResponse.success(loginResponse, "Refresh token successfully"));
     }
 
     @PostMapping("/details")
     @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_USER')")
-    public ResponseEntity<ResponseObject> getUserDetails(
+    public ResponseEntity<ApiResponse<UserResponse>> getUserDetails(
             @RequestHeader("Authorization") String authorizationHeader
     ) throws Exception {
         String extractedToken = authorizationHeader.substring(7);
         User user = userService.getUserDetailsFromToken(extractedToken);
-        return ResponseEntity.ok().body(
-                ResponseObject.builder()
-                        .message("Get user's detail successfully")
-                        .data(UserResponse.fromUser(user))
-                        .status(HttpStatus.OK)
-                        .build());
+        return ResponseEntity.ok(ApiResponse.success(UserResponse.fromUser(user), "Get user's detail successfully"));
     }
 
     @PutMapping("/details/{userId}")
     @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_USER')")
     @Operation(security = { @SecurityRequirement(name = "bearer-key") })
-    public ResponseEntity<ResponseObject> updateUserDetails(
+    public ResponseEntity<ApiResponse<?>> updateUserDetails(
             @PathVariable Long userId,
             @RequestBody UpdateUserDTO updatedUserDTO,
             @RequestHeader("Authorization") String authorizationHeader
@@ -249,86 +196,59 @@ public class UserController {
         String extractedToken = authorizationHeader.substring(7);
         User user = userService.getUserDetailsFromToken(extractedToken);
         if (user.getId() != userId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(HttpStatus.FORBIDDEN, "You do not have permission to update this user"));
         }
         User updatedUser = userService.updateUser(userId, updatedUserDTO);
-        return ResponseEntity.ok().body(
-                ResponseObject.builder()
-                        .message("Update user detail successfully")
-                        .data(UserResponse.fromUser(updatedUser))
-                        .status(HttpStatus.OK)
-                        .build());
+        return ResponseEntity.ok(ApiResponse.success(UserResponse.fromUser(updatedUser), "Update user detail successfully"));
     }
 
     @PutMapping("/reset-password/{userId}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> resetPassword(@Valid @PathVariable long userId) {
+    public ResponseEntity<ApiResponse<?>> resetPassword(@Valid @PathVariable long userId) {
         try {
             String newPassword = UUID.randomUUID().toString().substring(0, 5);
             userService.resetPassword(userId, newPassword);
-            return ResponseEntity.ok(ResponseObject.builder()
-                    .message("Reset password successfully")
-                    .data(newPassword)
-                    .status(HttpStatus.OK)
-                    .build());
+            return ResponseEntity.ok(ApiResponse.success(newPassword, "Reset password successfully"));
         } catch (InvalidPasswordException e) {
-            return ResponseEntity.ok(ResponseObject.builder()
-                    .message("Invalid password")
-                    .data("")
-                    .status(HttpStatus.BAD_REQUEST)
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Invalid password"));
         } catch (DataNotFoundException e) {
-            return ResponseEntity.ok(ResponseObject.builder()
-                    .message("User not found")
-                    .data("")
-                    .status(HttpStatus.BAD_REQUEST)
-                    .build());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, "User not found"));
         }
     }
 
     @PutMapping("/block/{userId}/{active}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> blockOrEnable(
+    public ResponseEntity<ApiResponse<?>> blockOrEnable(
             @Valid @PathVariable long userId,
             @Valid @PathVariable int active
     ) throws Exception {
         userService.blockOrEnable(userId, active > 0);
         String message = active > 0 ? "Successfully enabled the user." : "Successfully blocked the user.";
-        return ResponseEntity.ok().body(ResponseObject.builder()
-                .message(message)
-                .status(HttpStatus.OK)
-                .data(null)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(null, message));
     }
 
     @PostMapping(value = "/upload-profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> uploadProfileImage(
+    public ResponseEntity<ApiResponse<?>> uploadProfileImage(
             @RequestParam("file") MultipartFile file
     ) throws Exception {
         User loginUser = securityUtils.getLoggedInUser();
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(
-                    ResponseObject.builder()
-                            .message("Image file is required.")
-                            .build()
-            );
+                    ApiResponse.error(HttpStatus.BAD_REQUEST, "Image file is required."));
         }
         if (file.getSize() > 10 * 1024 * 1024) {
             return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                    .body(ResponseObject.builder()
-                            .message("Image file size exceeds the allowed limit of 10MB.")
-                            .status(HttpStatus.PAYLOAD_TOO_LARGE)
-                            .build()
-                    );
+                    .body(ApiResponse.error(HttpStatus.PAYLOAD_TOO_LARGE,
+                            "Image file size exceeds the allowed limit of 10MB."));
         }
         if (!FileUtils.isImageFile(file)) {
             return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                    .body(ResponseObject.builder()
-                            .message("Uploaded file must be an image.")
-                            .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                            .build()
-                    );
+                    .body(ApiResponse.error(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                            "Uploaded file must be an image."));
         }
 
         String oldFileName = loginUser.getProfileImage();
@@ -338,11 +258,7 @@ public class UserController {
             FileUtils.deleteFile(oldFileName);
         }
 
-        return ResponseEntity.ok().body(ResponseObject.builder()
-                .message("Upload profile image successfully")
-                .status(HttpStatus.CREATED)
-                .data(imageName)
-                .build());
+        return ResponseEntity.ok(ApiResponse.created(imageName, "Upload profile image successfully"));
     }
 
     @GetMapping("/profile-images/{imageName}")
@@ -375,7 +291,7 @@ public class UserController {
     }
 
     @GetMapping("/auth/social/callback")
-    public ResponseEntity<ResponseObject> callback(
+    public ResponseEntity<ApiResponse<LoginResponse>> callback(
             @RequestParam("code") String code,
             @RequestParam("login_type") String loginType,
             HttpServletRequest request
@@ -383,8 +299,7 @@ public class UserController {
         Map<String, Object> userInfo = authService.authenticateAndFetchProfile(code, loginType);
         if (userInfo == null) {
             return ResponseEntity.badRequest().body(
-                    new ResponseObject("Failed to authenticate", HttpStatus.BAD_REQUEST, null)
-            );
+                    ApiResponse.error(HttpStatus.BAD_REQUEST, "Failed to authenticate"));
         }
 
         String accountId = "";

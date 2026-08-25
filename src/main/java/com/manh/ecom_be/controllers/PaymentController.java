@@ -4,18 +4,14 @@ package com.manh.ecom_be.controllers;
 import com.manh.ecom_be.dtos.payment.PaymentDTO;
 import com.manh.ecom_be.dtos.payment.PaymentQueryDTO;
 import com.manh.ecom_be.dtos.payment.PaymentRefundDTO;
-import com.manh.ecom_be.responses.ResponseObject;
+import com.manh.ecom_be.responses.ApiResponse;
 import com.manh.ecom_be.services.vnpay.VNPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,74 +20,44 @@ public class PaymentController {
     private final VNPayService vnPayService;
 
     @PostMapping("/create_payment_url")
-    public ResponseEntity<ResponseObject> createPaymentUrl(
+    public ResponseEntity<ApiResponse<String>> createPaymentUrl(
             @RequestBody PaymentDTO paymentRequest,
             HttpServletRequest request
     ) {
         try {
-            String paymenUrl = vnPayService.createPaymentUrl(paymentRequest, request);
-            return ResponseEntity.ok(ResponseObject.builder()
-                            .status(HttpStatus.OK)
-                            .message("Payment URL generated successfully")
-                            .data(paymenUrl)
-                            .build()
-                    );
+            String paymentUrl = vnPayService.createPaymentUrl(paymentRequest, request);
+            return ResponseEntity.ok(ApiResponse.success(paymentUrl, "Payment URL generated successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseObject.builder()
-                            .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .message("Error generating payment URL: " + e.getMessage())
-                            .build());
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Error generating payment URL: " + e.getMessage()));
         }
     }
 
     @PostMapping("/query")
-    public ResponseEntity<ResponseObject> queryTransaction(@RequestBody PaymentQueryDTO paymentQueryDTO, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<String>> queryTransaction(
+            @RequestBody PaymentQueryDTO paymentQueryDTO, HttpServletRequest request) {
         try {
             String result = vnPayService.queryTransaction(paymentQueryDTO, request);
-            return ResponseEntity.ok(ResponseObject.builder()
-                    .status(HttpStatus.OK)
-                    .message("Query successful")
-                    .data(result)
-                    .build());
+            return ResponseEntity.ok(ApiResponse.success(result, "Query successful"));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ResponseObject.builder()
-            .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .message("Error querying transaction: " + e.getMessage())
-            .build());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Error querying transaction: " + e.getMessage()));
         }
     }
 
     @PostMapping("/refund")
-    public ResponseEntity<ResponseObject> refundTransaction(
-            @Valid @RequestBody PaymentRefundDTO paymentRefundDTO,
-            BindingResult result
-            ) {
-        if (result.hasErrors()) {
-            List<String> errorMessages = result.getFieldErrors()
-                    .stream()
-                    .map(FieldError::getDefaultMessage)
-                    .toList();
-            return ResponseEntity.badRequest().body(ResponseObject.builder()
-                    .message(String.join(", ", errorMessages))
-                    .status(HttpStatus.BAD_REQUEST)
-                            .data(null)
-                    .build());
-        }
-
+    public ResponseEntity<ApiResponse<String>> refundTransaction(
+            @Valid @RequestBody PaymentRefundDTO paymentRefundDTO
+    ) {
         try {
             String response = vnPayService.refundTransaction(paymentRefundDTO);
-            return ResponseEntity.ok().body(ResponseObject.builder()
-                    .message("Refund processed successfully")
-                    .status(HttpStatus.OK)
-                    .data(response)
-                    .build());
+            return ResponseEntity.ok(ApiResponse.success(response, "Refund processed successfully"));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ResponseObject.builder()
-                    .message("Failed to process refund: " + e.getMessage())
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .data(null)
-                    .build());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Failed to process refund: " + e.getMessage()));
         }
     }
 }

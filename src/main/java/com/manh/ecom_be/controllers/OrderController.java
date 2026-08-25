@@ -7,7 +7,7 @@ import com.manh.ecom_be.dtos.OrderDTO;
 import com.manh.ecom_be.models.Order;
 import com.manh.ecom_be.models.OrderStatus;
 import com.manh.ecom_be.models.User;
-import com.manh.ecom_be.responses.ResponseObject;
+import com.manh.ecom_be.responses.ApiResponse;
 import com.manh.ecom_be.responses.order.OrderResponse;
 import com.manh.ecom_be.responses.order.OrderListResponse;
 import com.manh.ecom_be.services.orders.InterfaceOrderService;
@@ -20,8 +20,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,96 +34,61 @@ public class OrderController {
 
     @PostMapping("")
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> createOrder(
-            @Valid @RequestBody OrderDTO orderDTO,
-            BindingResult result
+    public ResponseEntity<ApiResponse<Order>> createOrder(
+            @Valid @RequestBody OrderDTO orderDTO
     ) throws Exception {
-        if (result.hasErrors()) {
-            List<String> errorMessages = result.getFieldErrors()
-                    .stream()
-                    .map(FieldError::getDefaultMessage)
-                    .toList();
-
-            return ResponseEntity.badRequest().body(
-                    ResponseObject.builder()
-                            .message(String.join(";", errorMessages))
-                            .status(HttpStatus.BAD_REQUEST)
-                            .build());
-        }
         User loginUser = securityUtils.getLoggedInUser();
         if (orderDTO.getUserId() == null) {
             orderDTO.setUserId(loginUser.getId());
         }
         Order orderResponse = orderService.createOrder(orderDTO);
-
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Insert order successfully")
-                .data(orderResponse)
-                .status(HttpStatus.OK)
-                .build());
+        return ResponseEntity.ok(ApiResponse.created(orderResponse, "Insert order successfully"));
     }
 
     @GetMapping("/user/{user_id}")
-    public ResponseEntity<ResponseObject> getOrders(
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrders(
             @Valid @PathVariable("user_id") Long userId
     ) {
         User loginUser = securityUtils.getLoggedInUser();
         boolean isUserIdBlank = userId == null || userId == 0;
         List<OrderResponse> orderResponses = orderService.findByUserId(isUserIdBlank ? loginUser.getId() : userId);
-        return ResponseEntity.ok(ResponseObject
-                .builder()
-                .message("Get list of orders successfully")
-                .data(orderResponses)
-                .status(HttpStatus.OK)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(orderResponses, "Get list of orders successfully"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ResponseObject> getOrder(@PathVariable Long orderId) {
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrder(@PathVariable Long orderId) {
         Order existingOrder = orderService.getOrderById(orderId);
         OrderResponse orderResponse = OrderResponse.fromOrder(existingOrder);
-        return ResponseEntity.ok(new ResponseObject(
-                "Get order successfully",
-                HttpStatus.OK,
-                orderResponse
-        ));
+        return ResponseEntity.ok(ApiResponse.success(orderResponse, "Get order successfully"));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> updateOrder(
+    public ResponseEntity<ApiResponse<Order>> updateOrder(
             @Valid @PathVariable long id,
             @Valid @RequestBody OrderDTO orderDTO
     ) throws Exception {
         Order order = orderService.updateOrder(id, orderDTO);
-
-        return ResponseEntity.ok(new ResponseObject("Update order successfully", HttpStatus.OK, order));
+        return ResponseEntity.ok(ApiResponse.success(order, "Update order successfully"));
     }
 
     @PutMapping("/cancel/{id}")
     @PreAuthorize("hasRole('ROLE_USER')")
-    public ResponseEntity<ResponseObject> cancelOrder(
+    public ResponseEntity<ApiResponse<?>> cancelOrder(
             @Valid @PathVariable long id
     ) throws Exception {
         Order order = orderService.getOrderById(id);
         User loginUser = securityUtils.getLoggedInUser();
         if (loginUser.getId() != order.getUser().getId()) {
-            return ResponseEntity.badRequest().body(
-                    ResponseObject.builder()
-                            .data(null)
-                            .message("You do not have permission to cancel this order")
-                            .build()
-            );
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error(HttpStatus.FORBIDDEN, "You do not have permission to cancel this order"));
         }
         if (order.getStatus().equals(OrderStatus.DELIVERED) ||
         order.getStatus().equals(OrderStatus.SHIPPED) ||
         order.getStatus().equals(OrderStatus.CANCELLED)) {
             String message = "You cannot cancel an order with status: " + order.getStatus();
-            return ResponseEntity.badRequest().body(ResponseObject.builder()
-                    .status(HttpStatus.BAD_REQUEST)
-                    .data(null)
-                    .message(message)
-                    .build());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error(HttpStatus.BAD_REQUEST, message));
         }
 
         OrderDTO orderDTO = OrderDTO.builder()
@@ -134,26 +97,20 @@ public class OrderController {
                 .build();
 
         order = orderService.updateOrder(id, orderDTO);
-        return ResponseEntity.ok(
-                new ResponseObject(
-                        "Cancel order successfully", HttpStatus.OK, order)
-        );
+        return ResponseEntity.ok(ApiResponse.success(order, "Cancel order successfully"));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ResponseObject> deleteOrder(@Valid @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<?>> deleteOrder(@Valid @PathVariable Long id) {
         orderService.deleteOrder(id);
         String message = localizationUtils.getLocalizedMessage(
             MessageKeys.DELETE_ORDER_SUCCESSFULLY, id);
-        return ResponseEntity.ok(
-                ResponseObject.builder()
-                .message(message)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(null, message));
     }
 
     @GetMapping("/get-orders-by-keyword")
-    public ResponseEntity<ResponseObject> getOrdersByKeyword(
+    public ResponseEntity<ApiResponse<OrderListResponse>> getOrdersByKeyword(
             @RequestParam(defaultValue = "", required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int limit
@@ -172,24 +129,16 @@ public class OrderController {
                 .currentPage(page)
                 .build();
 
-        return ResponseEntity.ok().body(ResponseObject.builder()
-                .message("Get orders successfully")
-                .status(HttpStatus.OK)
-                .data(response)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(response, "Get orders successfully"));
     }
 
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_USER')")
-    public ResponseEntity<ResponseObject> updateOrderStatus(
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
             @Valid @PathVariable Long id,
             @RequestParam String status) throws Exception {
         Order updatedOrder = orderService.updateOrderStatus(id, status);
-        return ResponseEntity.ok(ResponseObject.builder()
-                .message("Update order status successfully")
-                .status(HttpStatus.OK)
-                .data(OrderResponse.fromOrder(updatedOrder))
-                .build()
-        );
+        return ResponseEntity.ok(ApiResponse.success(
+                OrderResponse.fromOrder(updatedOrder), "Update order status successfully"));
     }
 }
