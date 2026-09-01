@@ -3,6 +3,7 @@ package com.manh.ecom_be.responses;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.manh.ecom_be.exceptions.ErrorCode;
 import lombok.*;
 import org.springframework.http.HttpStatus;
 
@@ -21,6 +22,9 @@ public class ApiResponse<T> {
     @JsonProperty("code")
     private int code;
 
+    @JsonProperty("error_code")
+    private Integer errorCode;
+
     @JsonProperty("message")
     private String message;
 
@@ -32,7 +36,7 @@ public class ApiResponse<T> {
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
 
-    // ────────────────── Factory Methods ──────────────────
+    // ────────────────── Success Factory Methods ──────────────────
 
     public static <T> ApiResponse<T> success(T data, String message) {
         return ApiResponse.<T>builder()
@@ -56,6 +60,8 @@ public class ApiResponse<T> {
                 .build();
     }
 
+    // ────────────────── Error Factory Methods ──────────────────
+
     public static <T> ApiResponse<T> error(HttpStatus status, String message) {
         return ApiResponse.<T>builder()
                 .success(false)
@@ -69,6 +75,36 @@ public class ApiResponse<T> {
         return ApiResponse.<T>builder()
                 .success(false)
                 .code(status.value())
+                .message(message)
+                .data(data)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> error(ErrorCode errorCode) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .code(errorCode.getHttpStatus().value())
+                .errorCode(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .data(null)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> error(ErrorCode errorCode, String message) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .code(errorCode.getHttpStatus().value())
+                .errorCode(errorCode.getCode())
+                .message(message)
+                .data(null)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> error(ErrorCode errorCode, String message, T data) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .code(errorCode.getHttpStatus().value())
+                .errorCode(errorCode.getCode())
                 .message(message)
                 .data(data)
                 .build();

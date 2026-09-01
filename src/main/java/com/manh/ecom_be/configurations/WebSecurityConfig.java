@@ -2,6 +2,7 @@ package com.manh.ecom_be.configurations;
 
 
 import com.manh.ecom_be.filters.JwtTokenFilter;
+import com.manh.ecom_be.filters.RequestIdFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +30,7 @@ import static org.springframework.http.HttpMethod.*;
 @RequiredArgsConstructor
 public class WebSecurityConfig {
     private final JwtTokenFilter jwtTokenFilter;
+    private final RequestIdFilter requestIdFilter;
 
     @Value("${api.prefix}")
     private String apiPrefix;
@@ -39,8 +41,8 @@ public class WebSecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
                         c -> c.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtTokenFilter,
-                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtTokenFilter, RequestIdFilter.class)
                 .exceptionHandling(customizer -> customizer
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(requests -> requests

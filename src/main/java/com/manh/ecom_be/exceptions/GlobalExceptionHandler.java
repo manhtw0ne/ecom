@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleDataNotFound(DataNotFoundException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(HttpStatus.NOT_FOUND, ex.getMessage()));
+                .body(ApiResponse.error(ErrorCode.PRODUCT_NOT_FOUND, ex.getMessage()));
     }
 
     @ExceptionHandler(PermissionDenyException.class)
@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handlePermissionDeny(PermissionDenyException ex) {
         log.warn("Permission denied: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(HttpStatus.FORBIDDEN, ex.getMessage()));
+                .body(ApiResponse.error(ErrorCode.FORBIDDEN, ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleAccessDenied(AccessDeniedException ex) {
         log.warn("Access denied: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(HttpStatus.FORBIDDEN, "You do not have permission to access this resource"));
+                .body(ApiResponse.error(ErrorCode.FORBIDDEN, "You do not have permission to access this resource"));
     }
 
     @ExceptionHandler(InvalidParamException.class)
@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleInvalidParam(InvalidParamException ex) {
         log.warn("Invalid parameter: {}", ex.getMessage());
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ex.getMessage()));
+                .body(ApiResponse.error(ErrorCode.INVALID_PARAM, ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidPasswordException.class)
@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleInvalidPassword(InvalidPasswordException ex) {
         log.warn("Invalid password: {}", ex.getMessage());
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ex.getMessage()));
+                .body(ApiResponse.error(ErrorCode.INVALID_PASSWORD, ex.getMessage()));
     }
 
     @ExceptionHandler(ExpiredTokenException.class)
@@ -64,7 +64,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleExpiredToken(ExpiredTokenException ex) {
         log.warn("Expired token: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, ex.getMessage()));
+                .body(ApiResponse.error(ErrorCode.TOKEN_EXPIRED, ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -80,7 +80,7 @@ public class GlobalExceptionHandler {
 
         log.warn("Validation failed: {}", fieldErrors);
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Validation failed", fieldErrors));
+                .body(ApiResponse.error(ErrorCode.VALIDATION_FAILED, "Validation failed", fieldErrors));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         log.error("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(HttpStatus.CONFLICT, "Data integrity violation: duplicate or invalid data"));
+                .body(ApiResponse.error(ErrorCode.DATA_INTEGRITY_VIOLATION));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -96,7 +96,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         log.warn("File upload too large: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(ApiResponse.error(HttpStatus.PAYLOAD_TOO_LARGE, "File size exceeds the maximum allowed limit"));
+                .body(ApiResponse.error(ErrorCode.FILE_TOO_LARGE));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -104,7 +104,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
         log.warn("Method not supported: {} for this endpoint", ex.getMethod());
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(ApiResponse.error(HttpStatus.METHOD_NOT_ALLOWED,
+                .body(ApiResponse.error(ErrorCode.METHOD_NOT_ALLOWED,
                         "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint"));
     }
 
@@ -113,6 +113,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleGeneralException(Exception ex) {
         log.error("Unexpected error occurred: ", ex);
         return ResponseEntity.internalServerError()
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.error(ErrorCode.UNCATEGORIZED, ex.getMessage()));
     }
 }
