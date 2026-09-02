@@ -10,7 +10,9 @@ import com.manh.ecom_be.exceptions.InvalidParamException;
 import com.manh.ecom_be.models.*;
 import com.manh.ecom_be.repositories.*;
 import com.manh.ecom_be.responses.product.ProductResponse;
+import com.manh.ecom_be.components.metrics.BusinessMetrics;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,12 +27,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService implements InterfaceProductService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final ProductImageRepository productImageRepository;
     private final FavoriteRepository favoriteRepository;
+    private final BusinessMetrics businessMetrics;
 
     @Override
     @Transactional
@@ -90,9 +94,10 @@ public class ProductService implements InterfaceProductService {
     public Page<ProductResponse> getAllProducts(String keyword,
                                                 Long categoryId,
                                                 PageRequest pageRequest) {
-        Page<Product> productsPage;
-        productsPage = productRepository.searchProducts(categoryId, keyword, pageRequest);
-        return productsPage.map(ProductResponse::fromProduct);
+        return businessMetrics.getProductSearchTimer().record(() -> {
+            Page<Product> productsPage = productRepository.searchProducts(categoryId, keyword, pageRequest);
+            return productsPage.map(ProductResponse::fromProduct);
+        });
     }
 
     @Override

@@ -13,7 +13,9 @@ import com.manh.ecom_be.repositories.OrderRepository;
 import com.manh.ecom_be.repositories.ProductRepository;
 import com.manh.ecom_be.repositories.UserRepository;
 import com.manh.ecom_be.responses.order.OrderResponse;
+import com.manh.ecom_be.components.metrics.BusinessMetrics;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +29,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService implements InterfaceOrderService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
@@ -35,6 +38,7 @@ public class OrderService implements InterfaceOrderService {
     private final OrderDetailRepository orderDetailRepository;
 
     private final ModelMapper modelMapper;
+    private final BusinessMetrics businessMetrics;
 
     @Override
     @Transactional
@@ -100,6 +104,8 @@ public class OrderService implements InterfaceOrderService {
 
         orderDetailRepository.saveAll(orderDetails);
         orderRepository.save(order);
+        businessMetrics.incrementOrdersCreated();
+        log.info("Order created successfully: orderId={}, userId={}", order.getId(), order.getUser().getId());
         return order;
     }
 
@@ -243,6 +249,10 @@ public class OrderService implements InterfaceOrderService {
         }
 
         order.setStatus(status);
+        if (OrderStatus.CANCELLED.equals(status)) {
+            businessMetrics.incrementOrdersCancelled();
+            log.info("Order cancelled: orderId={}", order.getId());
+        }
 
         return orderRepository.save(order);
     }

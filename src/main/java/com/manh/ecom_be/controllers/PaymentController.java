@@ -1,6 +1,7 @@
 package com.manh.ecom_be.controllers;
 
 
+import com.manh.ecom_be.components.metrics.BusinessMetrics;
 import com.manh.ecom_be.dtos.payment.PaymentDTO;
 import com.manh.ecom_be.dtos.payment.PaymentQueryDTO;
 import com.manh.ecom_be.dtos.payment.PaymentRefundDTO;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("${api.prefix}/payments")
 public class PaymentController {
     private final VNPayService vnPayService;
+    private final BusinessMetrics businessMetrics;
 
     @PostMapping("/create_payment_url")
     public ResponseEntity<ApiResponse<String>> createPaymentUrl(
@@ -26,8 +28,10 @@ public class PaymentController {
     ) {
         try {
             String paymentUrl = vnPayService.createPaymentUrl(paymentRequest, request);
+            businessMetrics.incrementPaymentsSuccess();
             return ResponseEntity.ok(ApiResponse.success(paymentUrl, "Payment URL generated successfully"));
         } catch (Exception e) {
+            businessMetrics.incrementPaymentsFailed();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
                             "Error generating payment URL: " + e.getMessage()));
